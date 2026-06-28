@@ -1,0 +1,66 @@
+/* ============================================================
+   PROVOLETA — Design Tokens (Professional Edition)
+   ============================================================ */
+
+:root {
+  /* Backgrounds — deeper, richer */
+  --bg-base: #080a0f;
+  --bg-surface: #0f1219;
+  --bg-elevated: #161b26;
+  --bg-hover: #1e2536;
+  --bg-input: #0c0f16;
+  --bg-glass: rgba(15, 18, 25, 0.85);
+
+  /* Corporate blue */
+  --blue-300: #7ab4ff;
+  --blue-400: #4d9fff;
+  --blue-500: #2563eb;
+  --blue-600: #1d4ed8;
+  --blue-glow: rgba(37, 99, 235, 0.18);
+
+  /* Warm accent */
+  --warm-400: #fbbf24;
+  --warm-500: #f59e0b;
+  --warm-600: #d97706;
+  --warm-glow: rgba(245, 158, 11, 0.15);
+
+  /* Semantic */
+  --green: #10b981;
+  --green-dim: rgba(16, 185, 129, 0.12);
+  --red: #f43f5e;
+  --red-dim: rgba(244, 63, 94, 0.12);
+  --yellow: #eab308;
+  --yellow-dim: rgba(234, 179, 8, 0.12);
+
+  /* Text */
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  /* Borders */
+  --border: rgba(148, 163, 184, 0.12);
+  --border-strong: rgba(148, 163, 184, 0.22);
+  --border-focus: var(--blue-500);
+
+  /* Layout */
+  --sidebar-width: 268px;
+  --topbar-height: 60px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
+  --shadow-glow-blue: 0 0 0 1px rgba(37, 99, 235, 0.3), 0 4px 24px rgba(37, 99, 235, 0.15);
+  --shadow-glow-warm: 0 0 0 1px rgba(245, 158, 11, 0.3), 0 4px 24px rgba(245, 158, 11, 0.12);
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 4px 24px rgba(0, 0, 0, 0.25);
+
+  /* Typography */
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-display: 'Outfit', system-ui, sans-serif;
+
+  --transition: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}

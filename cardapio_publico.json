@@ -1,0 +1,26 @@
+{
+  "schema": "provoleta-public-menu",
+  "version": "1.0.0",
+  "publishedAt": "2026-06-28T12:00:00.000Z",
+  "store": {
+    "name": "Pizzaria Provoleta",
+    "whatsapp": "+55 77 9936-8373",
+    "welcomeMessage": "Monte seu pedido e envie direto pelo WhatsApp!",
+    "openHours": "Seg a Dom · 18h às 23h"
+  },
+  "categories": [
+    { "id": "cat_trad", "name": "Tradicional", "priceP": 32, "priceM": 42, "priceG": 52 },
+    { "id": "cat_prem", "name": "Premium", "priceP": 38, "priceM": 48, "priceG": 58 }
+  ],
+  "flavors": [
+    { "id": "flv_cal", "name": "Calabresa", "categoryId": "cat_trad" },
+    { "id": "flv_4q", "name": "Quatro Queijos", "categoryId": "cat_prem" }
+  ],
+  "drinks": [
+    { "id": "drk_coca", "name": "Coca-Cola", "priceLata": 6, "price1L": 10 }
+  ],
+  "neighborhoods": [
+    { "id": "nb_c", "name": "Centro", "fee": 5 },
+    { "id": "nb_ja", "name": "Jardim América", "fee": 8 }
+  ]
+}

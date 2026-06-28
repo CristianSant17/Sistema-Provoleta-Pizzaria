@@ -1,0 +1,462 @@
+/* ============================================================
+   PROVOLETA — Page-specific layouts
+   ============================================================ */
+
+/* ── Pedidos ── */
+.pedidos-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1100px) {
+  .pedidos-layout {
+    grid-template-columns: 420px 1fr;
+    align-items: start;
+  }
+}
+
+.pedido-form-card {
+  position: sticky;
+  top: calc(var(--topbar-height) + 1rem);
+}
+
+.pedido-total-display {
+  background: linear-gradient(135deg, var(--bg-elevated), var(--bg-surface));
+  border: 1px solid var(--warm-600);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.pedido-total-display__label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pedido-total-display__value {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--warm-400);
+}
+
+/* ── Configurações ── */
+.config-section {
+  margin-bottom: 2rem;
+}
+
+.config-section:last-child {
+  margin-bottom: 0;
+}
+
+.inline-form {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+}
+
+.inline-form .form-group {
+  flex: 1;
+  min-width: 140px;
+}
+
+.price-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.price-row .form-group {
+  min-width: 0;
+}
+
+/* ── Caixa ── */
+.caixa-auto-entry {
+  background: var(--green-dim);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.caixa-auto-entry__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.caixa-auto-entry__label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.caixa-auto-entry__value {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--green);
+}
+
+.caixa-auto-entry__badge {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── Motoboys ── */
+.motoboy-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 900px) {
+  .motoboy-layout {
+    grid-template-columns: 320px 1fr;
+  }
+}
+
+.motoboy-calc-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+}
+
+.motoboy-calc-card h4 {
+  font-family: var(--font-display);
+  margin-bottom: 1rem;
+  color: var(--warm-400);
+}
+
+.motoboy-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.motoboy-summary-item {
+  text-align: center;
+  padding: 0.75rem;
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.motoboy-summary-item__value {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--blue-400);
+}
+
+.motoboy-summary-item__label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+/* ── Estoque ── */
+.estoque-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* ── Dashboard ── */
+.dashboard-switch {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.chart-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+}
+
+.chart-card__title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--text-secondary);
+}
+
+.chart-container {
+  position: relative;
+  height: 280px;
+}
+
+.ranking-list {
+  list-style: none;
+}
+
+.ranking-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.ranking-item:last-child {
+  border-bottom: none;
+}
+
+.ranking-item__pos {
+  width: 28px;
+  height: 28px;
+  background: var(--bg-elevated);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--warm-400);
+}
+
+.ranking-item__pos--1 {
+  background: linear-gradient(135deg, var(--warm-500), var(--warm-600));
+  color: #fff;
+}
+
+.ranking-item__name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.ranking-item__count {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--blue-400);
+}
+
+/* ── Backup ── */
+.backup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.backup-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  text-align: center;
+}
+
+.backup-card__icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.backup-card__title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.backup-card__desc {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+.backup-warning {
+  background: var(--yellow-dim);
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  margin-top: 1.5rem;
+  font-size: 0.9rem;
+  color: var(--yellow);
+}
+
+.backup-warning strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+/* ── Item type selector ── */
+.item-type-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.item-type-btn {
+  padding: 0.85rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.item-type-btn:hover {
+  border-color: var(--blue-500);
+  color: var(--text-primary);
+}
+
+.item-type-btn.active {
+  border-color: var(--warm-500);
+  background: var(--warm-glow);
+  color: var(--warm-400);
+}
+
+.item-type-btn.active--drink {
+  border-color: var(--blue-500);
+  background: var(--blue-glow);
+  color: var(--blue-400);
+}
+
+/* ── Section divider ── */
+.section-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 1.5rem 0;
+}
+
+/* ── Motoboy date filter ── */
+.date-filter-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+/* ── WhatsApp Admin ── */
+.whatsapp-admin-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 900px) {
+  .whatsapp-admin-grid {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+.whatsapp-link-box {
+  margin-bottom: 1rem;
+}
+
+.whatsapp-link-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.whatsapp-link-row .form-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.85rem;
+}
+
+.whatsapp-status-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
+}
+
+.whatsapp-status {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.whatsapp-status--ok { border-color: rgba(16, 185, 129, 0.3); background: var(--green-dim); }
+.whatsapp-status--warn { border-color: rgba(234, 179, 8, 0.3); background: var(--yellow-dim); }
+.whatsapp-status--info { border-color: rgba(37, 99, 235, 0.2); }
+
+.whatsapp-status__label {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 0.2rem;
+}
+
+.whatsapp-status__value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ── Publicação cardápio JSON ── */
+.publish-card {
+  border-color: rgba(245, 158, 11, 0.25);
+  background: linear-gradient(135deg, rgba(22, 27, 38, 0.9), rgba(15, 18, 25, 0.95));
+}
+
+.publish-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.publish-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.publish-step__num {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--warm-glow);
+  color: var(--warm-400);
+  border-radius: 6px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.publish-step code {
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
