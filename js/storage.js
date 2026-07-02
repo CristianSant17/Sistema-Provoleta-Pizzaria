@@ -4,6 +4,7 @@
  */
 
 import { DEFAULT_WHATSAPP_FORMATTED } from './constants.js';
+import { buildPublicMenu } from './public-menu.js';
 
 const PREFIX = 'provoleta_';
 const VERSION = '1.0.0';
@@ -14,6 +15,7 @@ export const KEYS = {
   ESTOQUE: `${PREFIX}estoque`,
   META: `${PREFIX}meta`,
   SETTINGS: `${PREFIX}settings`,
+  PUBLIC_MENU: `${PREFIX}public_menu`,
 };
 
 /** Gera chave mensal: provoleta_pedidos_2026_06 */
@@ -67,11 +69,24 @@ export function getConfig() {
     neighborhoods: [],
     motoboys: [],
     channels: [],
+    additionals: [],
   });
 }
 
 export function saveConfig(config) {
-  save(KEYS.CONFIG, config);
+  const normalized = {
+    categories: config.categories || [],
+    flavors: config.flavors || [],
+    drinks: config.drinks || [],
+    neighborhoods: config.neighborhoods || [],
+    motoboys: config.motoboys || [],
+    channels: config.channels || [],
+    additionals: config.additionals || [],
+    ...config,
+  };
+  save(KEYS.CONFIG, normalized);
+  const settings = getSettings();
+  savePublicMenuSnapshot(buildPublicMenu(normalized, settings));
 }
 
 // ── Preferências locais do admin (pré-preenchem exportação do JSON público) ──
@@ -94,6 +109,15 @@ export function getSettings() {
 
 export function saveSettings(settings) {
   save(KEYS.SETTINGS, settings);
+  savePublicMenuSnapshot(buildPublicMenu(getConfig(), settings));
+}
+
+export function getPublicMenuSnapshot() {
+  return load(KEYS.PUBLIC_MENU, null);
+}
+
+export function savePublicMenuSnapshot(payload) {
+  save(KEYS.PUBLIC_MENU, payload);
 }
 
 // ── Meta (referência de mês, contadores) ──

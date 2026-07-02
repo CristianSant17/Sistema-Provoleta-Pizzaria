@@ -3,7 +3,8 @@
  * CRUD completo: criar, editar e excluir.
  */
 
-import { getConfig, saveConfig } from '../storage.js';
+import { getConfig, saveConfig, getPublicMenuSnapshot, savePublicMenuSnapshot, getSettings } from '../storage.js';
+import { buildPublicMenu } from '../public-menu.js';
 import { uid, escapeHtml, parseMoney } from '../utils.js';
 import { toast, confirmModal, initTabs, emptyState, tableActions, openFormModal } from '../ui.js';
 
@@ -11,11 +12,22 @@ let activeTab = 'categorias';
 
 export function renderConfigPage(container) {
   const config = getConfig();
+  const publicMenu = getPublicMenuSnapshot();
+  const hasPendingChanges = !publicMenu || JSON.stringify(publicMenu) !== JSON.stringify(buildPublicMenu(config, getSettings()));
 
   container.innerHTML = `
     <div class="page-header">
       <h1 class="page-header__title">Cadastros e Configurações</h1>
       <p class="page-header__subtitle">Gerencie categorias, sabores, bebidas, logística e equipe</p>
+    </div>
+
+    <div class="card config-section config-publish-card">
+      <div class="card__header">
+        <h3 class="card__title">Cardápio Público</h3>
+        <span class="tag ${hasPendingChanges ? 'tag--pending' : 'tag--ok'}">${hasPendingChanges ? 'Alterações pendentes' : 'Atualizado'}</span>
+      </div>
+      <p class="form-hint">Cada alteração salva aqui atualiza o payload local do cardápio público para exportação e publicação.</p>
+      <button type="button" class="btn btn--primary" id="publishMenuBtn">Salvar e Atualizar Cardápio Público</button>
     </div>
 
     <div class="tabs" id="configTabs">
@@ -81,6 +93,7 @@ function renderFlavorsPanel(config) {
     return `<tr>
       <td><strong>${escapeHtml(f.name)}</strong></td>
       <td>${cat ? escapeHtml(cat.name) : '—'}</td>
+      <td>${f.imageUrl ? '<span class="tag tag--ok">Com imagem</span>' : '<span class="tag tag--pending">Sem imagem</span>'}</td>
       <td>${tableActions(`data-edit-flavor="${f.id}"`, `data-delete-flavor="${f.id}"`)}</td>
     </tr>`;
   }).join('');
@@ -95,11 +108,13 @@ function renderFlavorsPanel(config) {
           <select class="form-select" name="categoryId" required ${!config.categories.length ? 'disabled' : ''}>
             <option value="">Selecione...</option>${catOptions}
           </select></div>
+        <div class="form-group form-group--full"><label class="form-label">Link da Imagem (opcional)</label>
+          <input class="form-input" name="imageUrl" placeholder="https://... ou /assets/..."></div>
         <button type="submit" class="btn btn--primary" ${!config.categories.length ? 'disabled' : ''}>+ Adicionar</button>
       </form>
       ${config.flavors.length ? `
         <div class="table-wrapper"><table class="data-table">
-          <thead><tr><th>Sabor</th><th>Categoria</th><th>Ações</th></tr></thead>
+          <thead><tr><th>Sabor</th><th>Categoria</th><th>Imagem</th><th>Ações</th></tr></thead>
           <tbody>${rows}</tbody>
         </table></div>` : emptyState('🧀', 'Nenhum sabor cadastrado')}
     </div>`;
@@ -111,6 +126,7 @@ function renderDrinksPanel(config) {
       <td><strong>${escapeHtml(d.name)}</strong></td>
       <td>R$ ${d.priceLata.toFixed(2)}</td>
       <td>R$ ${d.price1L.toFixed(2)}</td>
+      <td>${d.imageUrl ? '<span class="tag tag--ok">Com imagem</span>' : '<span class="tag tag--pending">Sem imagem</span>'}</td>
       <td>${tableActions(`data-edit-drink="${d.id}"`, `data-delete-drink="${d.id}"`)}</td>
     </tr>`).join('');
 
@@ -124,11 +140,13 @@ function renderDrinksPanel(config) {
           <input class="form-input" name="priceLata" type="number" step="0.01" min="0" required></div>
         <div class="form-group"><label class="form-label">Preço 1 Litro</label>
           <input class="form-input" name="price1L" type="number" step="0.01" min="0" required></div>
+        <div class="form-group form-group--full"><label class="form-label">Link da Imagem (opcional)</label>
+          <input class="form-input" name="imageUrl" placeholder="https://... ou /assets/..."></div>
         <button type="submit" class="btn btn--primary">+ Adicionar</button>
       </form>
       ${config.drinks.length ? `
         <div class="table-wrapper"><table class="data-table">
-          <thead><tr><th>Bebida</th><th>Lata</th><th>1 Litro</th><th>Ações</th></tr></thead>
+          <thead><tr><th>Bebida</th><th>Lata</th><th>1 Litro</th><th>Imagem</th><th>Ações</th></tr></thead>
           <tbody>${rows}</tbody>
         </table></div>` : emptyState('🥤', 'Nenhuma bebida cadastrada')}
     </div>`;
@@ -174,6 +192,13 @@ function renderTeamPanel(config) {
       <td>${tableActions(`data-edit-channel="${c.id}"`, `data-delete-channel="${c.id}"`)}</td>
     </tr>`).join('');
 
+  const additionalRows = (config.additionals || []).map((a) => `
+    <tr>
+      <td><strong>${escapeHtml(a.name)}</strong></td>
+      <td>R$ ${parseMoney(a.price).toFixed(2)}</td>
+      <td>${tableActions(`data-edit-additional="${a.id}"`, `data-delete-additional="${a.id}"`)}</td>
+    </tr>`).join('');
+
   return `
     <div class="card config-section">
       <div class="card__header"><h3 class="card__title">Motoboys</h3></div>
@@ -200,10 +225,44 @@ function renderTeamPanel(config) {
           <thead><tr><th>Canal</th><th>Ações</th></tr></thead>
           <tbody>${channelRows}</tbody>
         </table></div>` : emptyState('📱', 'Nenhum canal cadastrado')}
+    </div>
+    <div class="card config-section">
+      <div class="card__header"><h3 class="card__title">Adicionais / Bordas</h3></div>
+      <form id="formAdditional" class="inline-form">
+        <div class="form-group"><label class="form-label">Nome</label>
+          <input class="form-input" name="name" required placeholder="Ex: Borda de Catupiry"></div>
+        <div class="form-group"><label class="form-label">Preço</label>
+          <input class="form-input" name="price" type="number" step="0.01" min="0" required></div>
+        <button type="submit" class="btn btn--primary">+ Adicionar</button>
+      </form>
+      ${config.additionals?.length ? `
+        <div class="table-wrapper"><table class="data-table">
+          <thead><tr><th>Adicional</th><th>Preço</th><th>Ações</th></tr></thead>
+          <tbody>${additionalRows}</tbody>
+        </table></div>` : emptyState('🧀', 'Nenhum adicional cadastrado')}
     </div>`;
 }
 
 function bindConfigEvents(container) {
+  container.querySelector('#publishMenuBtn')?.addEventListener('click', () => {
+    const config = getConfig();
+    const settings = getSettings();
+    const payload = buildPublicMenu(config, settings);
+    savePublicMenuSnapshot(payload);
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'cardapio_publico.json';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
+
+    toast('Cardápio público atualizado e exportado!', 'success');
+    renderConfigPage(container);
+  });
+
   container.querySelector('#formCategory')?.addEventListener('submit', (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -221,7 +280,7 @@ function bindConfigEvents(container) {
     e.preventDefault();
     const fd = new FormData(e.target);
     const config = getConfig();
-    config.flavors.push({ id: uid(), name: fd.get('name').trim(), categoryId: fd.get('categoryId') });
+    config.flavors.push({ id: uid(), name: fd.get('name').trim(), categoryId: fd.get('categoryId'), imageUrl: fd.get('imageUrl').toString().trim() });
     saveConfig(config);
     toast('Sabor adicionado!', 'success');
     renderConfigPage(container);
@@ -233,7 +292,7 @@ function bindConfigEvents(container) {
     const config = getConfig();
     config.drinks.push({
       id: uid(), name: fd.get('name').trim(),
-      priceLata: parseMoney(fd.get('priceLata')), price1L: parseMoney(fd.get('price1L')),
+      priceLata: parseMoney(fd.get('priceLata')), price1L: parseMoney(fd.get('price1L')), imageUrl: fd.get('imageUrl').toString().trim(),
     });
     saveConfig(config);
     toast('Bebida adicionada!', 'success');
@@ -267,6 +326,17 @@ function bindConfigEvents(container) {
     config.channels.push({ id: uid(), name: fd.get('name').trim() });
     saveConfig(config);
     toast('Canal adicionado!', 'success');
+    renderConfigPage(container);
+  });
+
+  container.querySelector('#formAdditional')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const config = getConfig();
+    config.additionals = config.additionals || [];
+    config.additionals.push({ id: uid(), name: fd.get('name').trim(), price: parseMoney(fd.get('price')) });
+    saveConfig(config);
+    toast('Adicional adicionado!', 'success');
     renderConfigPage(container);
   });
 
@@ -318,10 +388,13 @@ function bindConfigEvents(container) {
               <input class="form-input" name="name" value="${escapeHtml(item.name)}" required></div>
             <div class="form-group"><label class="form-label">Categoria</label>
               <select class="form-select" name="categoryId" required>${catOptions}</select></div>
+            <div class="form-group form-group--full"><label class="form-label">Link da Imagem</label>
+              <input class="form-input" name="imageUrl" value="${escapeHtml(item.imageUrl || '')}" placeholder="https://... ou /assets/..."></div>
           </div>`,
         onSubmit: (_, fd) => {
           item.name = fd.get('name').trim();
           item.categoryId = fd.get('categoryId');
+          item.imageUrl = fd.get('imageUrl').toString().trim();
           saveConfig(config);
           toast('Sabor atualizado!', 'success');
           renderConfigPage(container);
@@ -342,11 +415,14 @@ function bindConfigEvents(container) {
               <input class="form-input" name="priceLata" type="number" step="0.01" value="${item.priceLata}" required></div>
             <div class="form-group"><label class="form-label">Preço 1 Litro</label>
               <input class="form-input" name="price1L" type="number" step="0.01" value="${item.price1L}" required></div>
+            <div class="form-group form-group--full"><label class="form-label">Link da Imagem</label>
+              <input class="form-input" name="imageUrl" value="${escapeHtml(item.imageUrl || '')}" placeholder="https://... ou /assets/..."></div>
           </div>`,
         onSubmit: (_, fd) => {
           item.name = fd.get('name').trim();
           item.priceLata = parseMoney(fd.get('priceLata'));
           item.price1L = parseMoney(fd.get('price1L'));
+          item.imageUrl = fd.get('imageUrl').toString().trim();
           saveConfig(config);
           toast('Bebida atualizada!', 'success');
           renderConfigPage(container);
@@ -419,6 +495,28 @@ function bindConfigEvents(container) {
       return;
     }
 
+    if (btn.dataset.editAdditional) {
+      const item = (config.additionals || []).find((a) => a.id === btn.dataset.editAdditional);
+      openFormModal({
+        title: 'Editar Adicional',
+        formHtml: `
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Nome</label>
+              <input class="form-input" name="name" value="${escapeHtml(item.name)}" required></div>
+            <div class="form-group"><label class="form-label">Preço</label>
+              <input class="form-input" name="price" type="number" step="0.01" value="${item.price}" required></div>
+          </div>`,
+        onSubmit: (_, fd) => {
+          item.name = fd.get('name').trim();
+          item.price = parseMoney(fd.get('price'));
+          saveConfig(config);
+          toast('Adicional atualizado!', 'success');
+          renderConfigPage(container);
+        },
+      });
+      return;
+    }
+
     // ── Excluir ──
     if (btn.dataset.deleteCat && await confirmModal({ title: 'Excluir Categoria', message: 'Sabores vinculados perderão a referência. Continuar?', danger: true })) {
       config.categories = config.categories.filter((c) => c.id !== btn.dataset.deleteCat);
@@ -442,6 +540,10 @@ function bindConfigEvents(container) {
     }
     if (btn.dataset.deleteChannel && await confirmModal({ title: 'Excluir Canal', message: 'Confirma a exclusão?', danger: true })) {
       config.channels = config.channels.filter((c) => c.id !== btn.dataset.deleteChannel);
+      changed = true;
+    }
+    if (btn.dataset.deleteAdditional && await confirmModal({ title: 'Excluir Adicional', message: 'Confirma a exclusão?', danger: true })) {
+      config.additionals = (config.additionals || []).filter((a) => a.id !== btn.dataset.deleteAdditional);
       changed = true;
     }
 

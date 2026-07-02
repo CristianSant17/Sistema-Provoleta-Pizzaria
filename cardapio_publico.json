@@ -1,7 +1,7 @@
 {
   "schema": "provoleta-public-menu",
-  "version": "1.0.0",
-  "publishedAt": "2026-06-28T12:00:00.000Z",
+  "version": "1.1.0",
+  "publishedAt": "2026-07-02T04:05:34.989Z",
   "store": {
     "name": "Pizzaria Provoleta",
     "whatsapp": "+55 77 9936-8373",
@@ -9,18 +9,71 @@
     "openHours": "Seg a Dom · 18h às 23h"
   },
   "categories": [
-    { "id": "cat_trad", "name": "Tradicional", "priceP": 32, "priceM": 42, "priceG": 52 },
-    { "id": "cat_prem", "name": "Premium", "priceP": 38, "priceM": 48, "priceG": 58 }
+    {
+      "id": "1782963919241_br26i2h",
+      "name": "Tradicional",
+      "priceP": 32,
+      "priceM": 42,
+      "priceG": 52
+    },
+    {
+      "id": "1782963919241_at7k807",
+      "name": "Premium",
+      "priceP": 38,
+      "priceM": 48,
+      "priceG": 58
+    }
   ],
   "flavors": [
-    { "id": "flv_cal", "name": "Calabresa", "categoryId": "cat_trad" },
-    { "id": "flv_4q", "name": "Quatro Queijos", "categoryId": "cat_prem" }
+    {
+      "id": "1782963919241_f5v4e70",
+      "name": "Calabresa",
+      "categoryId": "1782963919241_br26i2h",
+      "imageUrl": "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80"
+    },
+    {
+      "id": "1782963919241_db7l0x9",
+      "name": "Quatro Queijos",
+      "categoryId": "1782963919241_at7k807",
+      "imageUrl": "https://images.unsplash.com/photo-1548365328-8c6db3220e4c?auto=format&fit=crop&w=800&q=80"
+    }
   ],
   "drinks": [
-    { "id": "drk_coca", "name": "Coca-Cola", "priceLata": 6, "price1L": 10 }
+    {
+      "id": "1782963919241_fxsb0o0",
+      "name": "Coca-Cola",
+      "priceLata": 6,
+      "price1L": 10,
+      "imageUrl": "https://images.unsplash.com/photo-1625772299848-391b6a87d7b3?auto=format&fit=crop&w=800&q=80"
+    }
   ],
   "neighborhoods": [
-    { "id": "nb_c", "name": "Centro", "fee": 5 },
-    { "id": "nb_ja", "name": "Jardim América", "fee": 8 }
+    {
+      "id": "1782963919241_uz7yzqj",
+      "name": "Centro",
+      "fee": 5
+    },
+    {
+      "id": "1782963919241_smoubbh",
+      "name": "Jardim América",
+      "fee": 8
+    }
+  ],
+  "additionals": [
+    {
+      "id": "1782963919241_vib8dbi",
+      "name": "Borda de Catupiry",
+      "price": 8
+    },
+    {
+      "id": "1782963919241_bokapmk",
+      "name": "Queijo Extra",
+      "price": 5
+    },
+    {
+      "id": "1782963919241_l81zygj",
+      "name": "Bacon",
+      "price": 6
+    }
   ]
 }

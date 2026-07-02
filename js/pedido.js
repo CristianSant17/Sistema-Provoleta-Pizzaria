@@ -14,6 +14,10 @@ let menuTab = 'pizza';
 let selectedFlavorId = null;
 let selectedDrinkId = null;
 let selectedSize = null;
+let highlightIndex = 0;
+let highlightTimer = null;
+let customizationModal = null;
+let customizationState = null;
 
 async function loadMenu() {
   try {
@@ -79,6 +83,12 @@ function renderCart() {
   const footerTotal = document.getElementById('footerTotal');
   const sidebarTotal = document.getElementById('sidebarTotal');
   const badge = document.getElementById('cartBadge');
+  const floatingCart = document.getElementById('floatingCart');
+  const drawerList = document.getElementById('cartDrawerList');
+  const drawerSummary = document.getElementById('cartDrawerSummary');
+  const drawerTotal = document.getElementById('cartDrawerTotal');
+  const floatingCartLabel = document.getElementById('floatingCartLabel');
+  const floatingCartTotal = document.getElementById('floatingCartTotal');
 
   const count = cartCount();
   if (badge) {
@@ -99,21 +109,34 @@ function renderCart() {
     const zero = formatMoney(0);
     if (footerTotal) footerTotal.textContent = zero;
     if (sidebarTotal) sidebarTotal.textContent = zero;
+    if (floatingCart) floatingCart.hidden = true;
+    if (drawerList) drawerList.innerHTML = `
+      <div class="pz-cart-empty">
+        <div class="pz-cart-empty__icon">🛒</div>
+        <p>Sua sacola está vazia</p>
+        <span>Escolha pizzas e bebidas ao lado</span>
+      </div>`;
+    if (drawerSummary) drawerSummary.innerHTML = '';
+    if (drawerTotal) drawerTotal.textContent = zero;
     return;
   }
 
-  list.innerHTML = cart.map((item, idx) => `
-    <article class="pz-cart-item">
-      <div class="pz-cart-item__icon">${item.type === 'pizza' ? '🍕' : '🥤'}</div>
-      <div class="pz-cart-item__body">
-        <strong>${escapeHtml(item.name)}</strong>
-        <span>${item.quantity}x · ${sizeLabel(item.size)}</span>
-      </div>
-      <div class="pz-cart-item__right">
-        <span class="pz-cart-item__price">${formatMoney(item.unitPrice * item.quantity)}</span>
-        <button type="button" class="pz-cart-item__remove" data-remove="${idx}" aria-label="Remover">Remover</button>
-      </div>
-    </article>`).join('');
+  list.innerHTML = cart.map((item, idx) => {
+    const additions = (item.additionals || []).map((a) => a.name).join(', ');
+    const details = [sizeLabel(item.size), additions ? `+ ${additions}` : ''].filter(Boolean).join(' · ');
+    return `
+      <article class="pz-cart-item">
+        <div class="pz-cart-item__icon">${item.type === 'pizza' ? '🍕' : '🥤'}</div>
+        <div class="pz-cart-item__body">
+          <strong>${escapeHtml(item.name)}</strong>
+          <span>${item.quantity}x · ${details}</span>
+        </div>
+        <div class="pz-cart-item__right">
+          <span class="pz-cart-item__price">${formatMoney(item.unitPrice * item.quantity)}</span>
+          <button type="button" class="pz-cart-item__remove" data-remove="${idx}" aria-label="Remover">Remover</button>
+        </div>
+      </article>`;
+  }).join('');
 
   summary.innerHTML = `
     <div class="pz-summary-row"><span>Subtotal</span><span>${formatMoney(cartSubtotal())}</span></div>
@@ -125,6 +148,148 @@ function renderCart() {
   if (btnMobile) btnMobile.disabled = false;
   if (footerTotal) footerTotal.textContent = total;
   if (sidebarTotal) sidebarTotal.textContent = total;
+  if (floatingCart) {
+    floatingCart.hidden = false;
+    if (floatingCartLabel) floatingCartLabel.textContent = `Ver Sacola (${count} itens)`;
+    if (floatingCartTotal) floatingCartTotal.textContent = total;
+  }
+
+  if (drawerList) {
+    drawerList.innerHTML = cart.map((item, idx) => {
+      const additions = (item.additionals || []).map((a) => a.name).join(', ');
+      const details = [sizeLabel(item.size), additions ? `+ ${additions}` : ''].filter(Boolean).join(' · ');
+      return `
+        <article class="pz-cart-item pz-cart-item--drawer">
+          <div class="pz-cart-item__icon">${item.type === 'pizza' ? '🍕' : '🥤'}</div>
+          <div class="pz-cart-item__body">
+            <strong>${escapeHtml(item.name)}</strong>
+            <span>${item.quantity}x · ${details}</span>
+          </div>
+          <div class="pz-cart-item__right">
+            <span class="pz-cart-item__price">${formatMoney(item.unitPrice * item.quantity)}</span>
+            <button type="button" class="pz-cart-item__remove" data-remove="${idx}" aria-label="Remover">Remover</button>
+          </div>
+        </article>`;
+    }).join('');
+  }
+
+  if (drawerSummary) {
+    drawerSummary.innerHTML = `
+      <div class="pz-summary-row"><span>Subtotal</span><span>${formatMoney(cartSubtotal())}</span></div>
+      <div class="pz-summary-row"><span>Taxa de entrega</span><span>${formatMoney(deliveryFee)}</span></div>
+      <div class="pz-summary-row pz-summary-row--total"><span>Total</span><span>${formatMoney(cartTotal())}</span></div>`;
+  }
+
+  if (drawerTotal) drawerTotal.textContent = total;
+}
+
+function renderCustomizationModal() {
+  if (!customizationModal || !customizationState) return;
+
+  const { item, size, quantity, basePrice, selectedAdditionals } = customizationState;
+  const total = (basePrice + selectedAdditionals.reduce((s, a) => s + (a.price || 0), 0)) * quantity;
+  const additionals = (menu?.additionals || []).map((extra) => {
+    const checked = selectedAdditionals.some((a) => a.id === extra.id);
+    return `
+      <div class="pz-additional-item">
+        <label>
+          <input type="checkbox" data-additional-id="${extra.id}" ${checked ? 'checked' : ''}>
+          <span>${escapeHtml(extra.name)}</span>
+        </label>
+        <span>${formatMoney(extra.price || 0)}</span>
+      </div>`;
+  }).join('');
+
+  customizationModal.innerHTML = `
+    <div class="pz-modal-backdrop">
+      <div class="pz-modal" role="dialog" aria-modal="true">
+        <div class="pz-modal__image">
+          ${item.imageUrl ? `<img src="${item.imageUrl}" alt="${escapeHtml(item.name)}">` : '<div class="pz-product-card__image--fallback">🍕</div>'}
+        </div>
+        <div class="pz-modal__body">
+          <h3 class="pz-modal__title">${escapeHtml(item.name)}</h3>
+          <p class="pz-modal__subtitle">${escapeHtml(sizeLabel(size))} · ${quantity} unidade${quantity > 1 ? 's' : ''}</p>
+          <div class="pz-modal__section">
+            <h4>Adicionar extras</h4>
+            ${additionals || '<p class="pz-builder-hint">Nenhum extra cadastrado.</p>'}
+          </div>
+        </div>
+        <div class="pz-modal__footer">
+          <div class="pz-modal__total">Total: ${formatMoney(total)}</div>
+          <div class="pz-builder-footer">
+            <button type="button" class="pz-btn-add-cart" data-action="cancel" style="background: #44403c; box-shadow: none; min-width: 120px;">Cancelar</button>
+            <button type="button" class="pz-btn-add-cart" data-action="confirm" style="min-width: 140px;">Confirmar</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  customizationModal.querySelectorAll('input[data-additional-id]').forEach((input) => {
+    input.addEventListener('change', (event) => {
+      const id = event.target.getAttribute('data-additional-id');
+      const extra = (menu?.additionals || []).find((itemExtra) => itemExtra.id === id);
+      if (!extra) return;
+      if (event.target.checked) {
+        customizationState.selectedAdditionals = [...customizationState.selectedAdditionals, extra];
+      } else {
+        customizationState.selectedAdditionals = customizationState.selectedAdditionals.filter((selected) => selected.id !== id);
+      }
+      renderCustomizationModal();
+    });
+  });
+
+  customizationModal.querySelector('[data-action="cancel"]')?.addEventListener('click', closeCustomizationModal);
+  customizationModal.querySelector('[data-action="confirm"]')?.addEventListener('click', confirmCustomization);
+}
+
+function closeCustomizationModal() {
+  if (customizationModal) {
+    customizationModal.innerHTML = '';
+  }
+  customizationState = null;
+}
+
+function confirmCustomization() {
+  if (!customizationState) return;
+  const { type, item, size, quantity, basePrice, selectedAdditionals } = customizationState;
+  const unitPrice = basePrice + selectedAdditionals.reduce((sum, extra) => sum + (extra.price || 0), 0);
+  cart.push({
+    type,
+    name: item.name,
+    size,
+    quantity,
+    unitPrice,
+    additionals: selectedAdditionals,
+  });
+  renderCart();
+  showToast(`${item.name} adicionada!`);
+  closeCustomizationModal();
+  selectedSize = null;
+  if (type === 'pizza') {
+    renderPizzaBuilder();
+    document.querySelectorAll('.pz-product-card--pizza').forEach((card) => {
+      card.classList.toggle('selected', card.dataset.flavorId === selectedFlavorId);
+    });
+  } else {
+    renderDrinkBuilder();
+  }
+}
+
+function openCustomizationModal(config) {
+  customizationState = {
+    type: config.type,
+    item: config.item,
+    size: config.size,
+    quantity: config.quantity,
+    basePrice: config.basePrice,
+    selectedAdditionals: [],
+  };
+  if (!customizationModal) {
+    customizationModal = document.createElement('div');
+    customizationModal.id = 'customizationModal';
+    document.body.appendChild(customizationModal);
+  }
+  renderCustomizationModal();
 }
 
 function renderPizzaBuilder() {
@@ -184,16 +349,12 @@ function renderPizzaBuilder() {
 
   el.querySelector('#addPizza')?.addEventListener('click', () => {
     if (!selectedSize) { showToast('Escolha o tamanho.', true); return; }
-    cart.push({
-      type: 'pizza', name: flavor.name, size: selectedSize, quantity: qty,
-      unitPrice: calcItemPrice('pizza', selectedFlavorId, selectedSize),
-    });
-    renderCart();
-    showToast(`${flavor.name} adicionada!`);
-    selectedSize = null;
-    renderPizzaBuilder();
-    document.querySelectorAll('.pz-product-card--pizza').forEach((c) => {
-      c.classList.toggle('selected', c.dataset.flavorId === selectedFlavorId);
+    openCustomizationModal({
+      type: 'pizza',
+      item: flavor,
+      size: selectedSize,
+      quantity: qty,
+      basePrice: calcItemPrice('pizza', selectedFlavorId, selectedSize),
     });
   });
 }
@@ -251,14 +412,13 @@ function renderDrinkBuilder() {
 
   el.querySelector('#addDrink')?.addEventListener('click', () => {
     if (!selectedSize) { showToast('Escolha o tamanho.', true); return; }
-    cart.push({
-      type: 'bebida', name: drink.name, size: selectedSize, quantity: qty,
-      unitPrice: calcItemPrice('bebida', selectedDrinkId, selectedSize),
+    openCustomizationModal({
+      type: 'bebida',
+      item: drink,
+      size: selectedSize,
+      quantity: qty,
+      basePrice: calcItemPrice('bebida', selectedDrinkId, selectedSize),
     });
-    renderCart();
-    showToast(`${drink.name} adicionada!`);
-    selectedSize = null;
-    renderDrinkBuilder();
   });
 }
 
@@ -266,10 +426,11 @@ function renderFlavorGrid() {
   return menu.flavors.map((f) => {
     const cat = menu.categories.find((c) => c.id === f.categoryId);
     const from = cat ? formatMoney(Math.min(cat.priceP, cat.priceM, cat.priceG)) : '';
+    const image = f.imageUrl ? `<div class="pz-product-card__image"><img src="${f.imageUrl}" alt="${escapeHtml(f.name)}" loading="lazy"></div>` : `<div class="pz-product-card__image pz-product-card__image--fallback">🍕</div>`;
     return `
       <button type="button" class="pz-product-card pz-product-card--pizza ${selectedFlavorId === f.id ? 'selected' : ''}"
               data-flavor-id="${f.id}">
-        <span class="pz-product-card__emoji">🍕</span>
+        ${image}
         <span class="pz-product-card__name">${escapeHtml(f.name)}</span>
         ${cat ? `<span class="pz-product-card__meta">${escapeHtml(cat.name)} · a partir de ${from}</span>` : ''}
       </button>`;
@@ -277,13 +438,16 @@ function renderFlavorGrid() {
 }
 
 function renderDrinkGrid() {
-  return menu.drinks.map((d) => `
-    <button type="button" class="pz-product-card pz-product-card--drink ${selectedDrinkId === d.id ? 'selected' : ''}"
-            data-drink-id="${d.id}">
-      <span class="pz-product-card__emoji">🥤</span>
-      <span class="pz-product-card__name">${escapeHtml(d.name)}</span>
-      <span class="pz-product-card__meta">Lata ${formatMoney(d.priceLata)} · 1L ${formatMoney(d.price1L)}</span>
-    </button>`).join('');
+  return menu.drinks.map((d) => {
+    const image = d.imageUrl ? `<div class="pz-product-card__image"><img src="${d.imageUrl}" alt="${escapeHtml(d.name)}" loading="lazy"></div>` : `<div class="pz-product-card__image pz-product-card__image--fallback">🥤</div>`;
+    return `
+      <button type="button" class="pz-product-card pz-product-card--drink ${selectedDrinkId === d.id ? 'selected' : ''}"
+              data-drink-id="${d.id}">
+        ${image}
+        <span class="pz-product-card__name">${escapeHtml(d.name)}</span>
+        <span class="pz-product-card__meta">Lata ${formatMoney(d.priceLata)} · 1L ${formatMoney(d.price1L)}</span>
+      </button>`;
+  }).join('');
 }
 
 function switchMenuTab(tab) {
@@ -296,6 +460,52 @@ function switchMenuTab(tab) {
   document.getElementById('panelDrink').hidden = tab !== 'bebida';
 }
 
+function buildHighlightsMarkup() {
+  const featured = [
+    ...(menu.flavors || []).slice(0, 2),
+    ...(menu.drinks || []).slice(0, 1),
+  ].filter(Boolean);
+  if (!featured.length) return '';
+  return `
+    <section class="pz-highlights">
+      <div class="pz-highlight-slider">
+        <div class="pz-highlight-track" id="highlightTrack" style="transform: translateX(-${highlightIndex * 100}%);">
+          ${featured.map((item) => `
+            <article class="pz-highlight-card">
+              <div class="pz-highlight-card__image">
+                ${item.imageUrl ? `<img src="${item.imageUrl}" alt="${escapeHtml(item.name)}" loading="lazy">` : '<div class="pz-product-card__image--fallback">🍕</div>'}
+              </div>
+              <div class="pz-highlight-card__content">
+                <h3>${escapeHtml(item.name)}</h3>
+                <p>${item.categoryId ? 'Uma das opções mais pedidas da semana.' : 'Refrescante e ideal para acompanhar seu pedido.'}</p>
+                <button type="button" class="pz-btn-add-cart" style="min-width: auto; padding: 0.7rem 1rem;">Escolher agora</button>
+              </div>
+            </article>`).join('')}
+        </div>
+      </div>
+      <div class="pz-highlight-dots">
+        ${featured.map((_, index) => `<button type="button" class="pz-highlight-dot ${index === highlightIndex ? 'active' : ''}" data-slide="${index}" aria-label="Ir para destaque ${index + 1}"></button>`).join('')}
+      </div>
+    </section>`;
+}
+
+function updateHighlightSlider() {
+  const track = document.getElementById('highlightTrack');
+  if (track) track.style.transform = `translateX(-${highlightIndex * 100}%)`;
+  document.querySelectorAll('.pz-highlight-dot').forEach((dot) => {
+    dot.classList.toggle('active', Number(dot.dataset.slide) === highlightIndex);
+  });
+}
+
+function initHighlights() {
+  if (highlightTimer) clearInterval(highlightTimer);
+  if (!document.querySelector('.pz-highlight-dot')) return;
+  highlightTimer = setInterval(() => {
+    highlightIndex = (highlightIndex + 1) % Math.max(1, document.querySelectorAll('.pz-highlight-dot').length);
+    updateHighlightSlider();
+  }, 5000);
+}
+
 function buildWhatsAppMessage() {
   const { store } = menu;
   const name = document.getElementById('customerName').value.trim();
@@ -306,16 +516,18 @@ function buildWhatsAppMessage() {
   const obs = document.getElementById('observations').value.trim();
 
   const lines = [
-    `🍕 *NOVO PEDIDO — ${store.name}*`, '',
-    `👤 *Cliente:* ${name}`, `📱 *Telefone:* ${phone}`,
-    `📍 *Bairro:* ${neighborhood}`, `🏠 *Endereço:* ${address}`, '',
+    ` *NOVO PEDIDO — ${store.name}*`, '',
+    ` *Cliente:* ${name}`, ` *Telefone:* ${phone}`,
+    ` *Bairro:* ${neighborhood}`, ` *Endereço:* ${address}`, '',
     '*ITENS:*',
   ];
   cart.forEach((item, i) => {
-    lines.push(`${i + 1}. ${item.quantity}x ${item.name} (${sizeLabel(item.size)}) — ${formatMoney(item.unitPrice * item.quantity)}`);
+    const extras = (item.additionals || []).map((a) => a.name).join(', ');
+    const details = extras ? ` · extras: ${extras}` : '';
+    lines.push(`${i + 1}. ${item.quantity}x ${item.name} (${sizeLabel(item.size)})${details} — ${formatMoney(item.unitPrice * item.quantity)}`);
   });
-  lines.push('', `🛵 *Taxa de entrega:* ${formatMoney(deliveryFee)}`, `💰 *TOTAL: ${formatMoney(cartTotal())}*`, '', `💳 *Pagamento:* ${paymentLabel(payment)}`);
-  if (obs) lines.push(`📝 *Obs:* ${obs}`);
+  lines.push('', ` *Taxa de entrega:* ${formatMoney(deliveryFee)}`, ` *TOTAL: ${formatMoney(cartTotal())}*`, '', ` *Pagamento:* ${paymentLabel(payment)}`);
+  if (obs) lines.push(` *Obs:* ${obs}`);
   lines.push('', `_Pedido online · ${new Date().toLocaleString('pt-BR')}_`);
   return lines.join('\n');
 }
@@ -375,6 +587,8 @@ function renderApp() {
         </div>
       </div>
     </section>
+
+    ${buildHighlightsMarkup()}
 
     <div class="pz-layout">
       <div class="pz-main-col">
@@ -446,6 +660,29 @@ function renderApp() {
       </aside>
     </div>
 
+    <div class="pz-floating-cart">
+      <button type="button" class="pz-floating-cart__button" id="floatingCart" hidden>
+        <strong id="floatingCartLabel">Ver Sacola</strong>
+        <span id="floatingCartTotal">R$ 0,00</span>
+      </button>
+    </div>
+
+    <div class="pz-cart-drawer" id="cartPanel" aria-hidden="true">
+      <div class="pz-cart-drawer__backdrop" data-close-cart></div>
+      <div class="pz-cart-drawer__sheet">
+        <div class="pz-cart-drawer__header">
+          <div>
+            <h3>Sua sacola</h3>
+            <p id="cartDrawerTotal">R$ 0,00</p>
+          </div>
+          <button type="button" class="pz-cart-drawer__close" data-close-cart aria-label="Fechar sacola">✕</button>
+        </div>
+        <div class="pz-cart-drawer__body" id="cartDrawerList"></div>
+        <div class="pz-cart-drawer__summary" id="cartDrawerSummary"></div>
+        <button type="button" class="pz-checkout-btn" id="whatsappBtnDrawer">Finalizar no WhatsApp</button>
+      </div>
+    </div>
+
     <footer class="pz-mobile-bar">
       <div class="pz-mobile-bar__total">
         <small>Total do pedido</small>
@@ -499,15 +736,51 @@ function bindEvents() {
     renderCart();
   });
 
+  const removeCartItem = (target) => {
+    const btn = target.closest('[data-remove]');
+    if (!btn) return;
+    cart.splice(parseInt(btn.dataset.remove, 10), 1);
+    renderCart();
+  };
+
   document.getElementById('cartList')?.addEventListener('click', (e) => {
-    if (e.target.dataset.remove !== undefined) {
-      cart.splice(parseInt(e.target.dataset.remove, 10), 1);
-      renderCart();
-    }
+    removeCartItem(e.target);
+  });
+
+  document.getElementById('cartDrawerList')?.addEventListener('click', (e) => {
+    removeCartItem(e.target);
   });
 
   document.getElementById('whatsappBtn')?.addEventListener('click', sendWhatsApp);
   document.getElementById('whatsappBtnMobile')?.addEventListener('click', sendWhatsApp);
+  document.getElementById('floatingCart')?.addEventListener('click', () => {
+    const cartPanel = document.getElementById('cartPanel');
+    if (cartPanel) {
+      cartPanel.classList.add('is-open');
+      cartPanel.setAttribute('aria-hidden', 'false');
+    }
+  });
+
+  document.querySelectorAll('[data-close-cart]').forEach((el) => {
+    el.addEventListener('click', () => {
+      const cartPanel = document.getElementById('cartPanel');
+      if (cartPanel) {
+        cartPanel.classList.remove('is-open');
+        cartPanel.setAttribute('aria-hidden', 'true');
+      }
+    });
+  });
+
+  document.getElementById('whatsappBtnDrawer')?.addEventListener('click', sendWhatsApp);
+
+  document.querySelectorAll('.pz-highlight-dot').forEach((dot) => {
+    dot.addEventListener('click', () => {
+      highlightIndex = Number(dot.dataset.slide);
+      updateHighlightSlider();
+    });
+  });
+
+  initHighlights();
 }
 
 async function init() {

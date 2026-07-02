@@ -19,11 +19,11 @@ export function seedIfNeeded() {
       { id: catId2, name: 'Premium', priceP: 38, priceM: 48, priceG: 58 },
     ],
     flavors: [
-      { id: uid(), name: 'Calabresa', categoryId: catId },
-      { id: uid(), name: 'Quatro Queijos', categoryId: catId2 },
+      { id: uid(), name: 'Calabresa', categoryId: catId, imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80' },
+      { id: uid(), name: 'Quatro Queijos', categoryId: catId2, imageUrl: 'https://images.unsplash.com/photo-1548365328-8c6db3220e4c?auto=format&fit=crop&w=800&q=80' },
     ],
     drinks: [
-      { id: uid(), name: 'Coca-Cola', priceLata: 6, price1L: 10 },
+      { id: uid(), name: 'Coca-Cola', priceLata: 6, price1L: 10, imageUrl: 'https://images.unsplash.com/photo-1625772299848-391b6a87d7b3?auto=format&fit=crop&w=800&q=80' },
     ],
     neighborhoods: [
       { id: uid(), name: 'Centro', fee: 5 },
@@ -35,6 +35,11 @@ export function seedIfNeeded() {
     channels: [
       { id: uid(), name: 'WhatsApp' },
       { id: uid(), name: 'iFood' },
+    ],
+    additionals: [
+      { id: uid(), name: 'Borda de Catupiry', price: 8 },
+      { id: uid(), name: 'Queijo Extra', price: 5 },
+      { id: uid(), name: 'Bacon', price: 6 },
     ],
   };
 

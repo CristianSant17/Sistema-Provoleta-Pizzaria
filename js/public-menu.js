@@ -9,7 +9,7 @@ import { PUBLIC_MENU_SCHEMA, DEFAULT_WHATSAPP_FORMATTED } from './constants.js';
 export function buildPublicMenu(config, storeSettings) {
   return {
     schema: PUBLIC_MENU_SCHEMA,
-    version: '1.0.0',
+    version: '1.1.0',
     publishedAt: new Date().toISOString(),
     store: {
       name: storeSettings.storeName?.trim() || 'Pizzaria Provoleta',
@@ -20,11 +20,12 @@ export function buildPublicMenu(config, storeSettings) {
     categories: (config.categories || []).map(({ id, name, priceP, priceM, priceG }) => ({
       id, name, priceP, priceM, priceG,
     })),
-    flavors: (config.flavors || []).map(({ id, name, categoryId }) => ({ id, name, categoryId })),
-    drinks: (config.drinks || []).map(({ id, name, priceLata, price1L }) => ({
-      id, name, priceLata, price1L,
+    flavors: (config.flavors || []).map(({ id, name, categoryId, imageUrl }) => ({ id, name, categoryId, imageUrl })),
+    drinks: (config.drinks || []).map(({ id, name, priceLata, price1L, imageUrl }) => ({
+      id, name, priceLata, price1L, imageUrl,
     })),
     neighborhoods: (config.neighborhoods || []).map(({ id, name, fee }) => ({ id, name, fee })),
+    additionals: (config.additionals || []).map(({ id, name, price }) => ({ id, name, price })),
   };
 }
 
@@ -60,6 +61,7 @@ export function normalizePublicMenu(raw) {
       flavors: raw.flavors || [],
       drinks: raw.drinks || [],
       neighborhoods: raw.neighborhoods || [],
+      additionals: raw.additionals || [],
       publishedAt: raw.publishedAt,
     };
   }
@@ -76,6 +78,7 @@ export function normalizePublicMenu(raw) {
       flavors: raw.flavors || [],
       drinks: raw.drinks || [],
       neighborhoods: raw.neighborhoods || [],
+      additionals: raw.additionals || [],
       publishedAt: raw.publishedAt,
     };
   }

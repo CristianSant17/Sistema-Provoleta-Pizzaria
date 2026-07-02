@@ -21,6 +21,60 @@ const state = {
   month: new Date().getMonth() + 1,
 };
 
+const AUTH_KEY = 'provoleta_admin_auth';
+const AUTH_PASSWORD = 'JCProvoleta';
+
+function isAuthenticated() {
+  return sessionStorage.getItem(AUTH_KEY) === 'true';
+}
+
+function showAuthOverlay() {
+  const overlay = document.getElementById('authOverlay');
+  const card = document.getElementById('authCard');
+  const app = document.getElementById('app');
+  if (overlay) overlay.style.display = 'flex';
+  if (app) app.classList.add('is-locked');
+  if (card) {
+    card.classList.remove('auth-card--error');
+    void card.offsetWidth;
+  }
+}
+
+function hideAuthOverlay() {
+  const overlay = document.getElementById('authOverlay');
+  const app = document.getElementById('app');
+  if (overlay) overlay.style.display = 'none';
+  if (app) app.classList.remove('is-locked');
+}
+
+function handleAuthSubmit(event) {
+  event.preventDefault();
+  const input = document.getElementById('accessPassword');
+  const card = document.getElementById('authCard');
+  if (!input) return;
+
+  if (input.value === AUTH_PASSWORD) {
+    sessionStorage.setItem(AUTH_KEY, 'true');
+    hideAuthOverlay();
+    navigate(state.currentPage);
+    return;
+  }
+
+  if (card) {
+    card.classList.remove('auth-card--error');
+    void card.offsetWidth;
+    card.classList.add('auth-card--error');
+  }
+  input.value = '';
+  input.focus();
+}
+
+function logoutAdmin() {
+  sessionStorage.removeItem(AUTH_KEY);
+  showAuthOverlay();
+  document.getElementById('mainContent').innerHTML = '';
+}
+
 /** Mapa de renderizadores por página */
 const pages = {
   pedidos: (el) => renderOrdersPage(el, { year: state.year, month: state.month }),
@@ -108,14 +162,29 @@ function init() {
   monthSelector.addEventListener('change', (e) => setReferenceMonth(e.target.value));
 
   document.querySelectorAll('.nav-item').forEach((btn) => {
-    btn.addEventListener('click', () => navigate(btn.dataset.page));
+    btn.addEventListener('click', () => {
+      if (!isAuthenticated()) {
+        showAuthOverlay();
+        return;
+      }
+      navigate(btn.dataset.page);
+    });
   });
+
+  document.getElementById('authForm')?.addEventListener('submit', handleAuthSubmit);
+  document.getElementById('logoutBtn')?.addEventListener('click', logoutAdmin);
 
   initSidebar();
   initLogo();
   updateClock();
   setInterval(updateClock, 30000);
 
+  if (!isAuthenticated()) {
+    showAuthOverlay();
+    return;
+  }
+
+  hideAuthOverlay();
   navigate('pedidos');
 }
 
