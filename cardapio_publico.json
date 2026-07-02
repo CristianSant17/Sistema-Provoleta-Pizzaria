@@ -1,7 +1,7 @@
 {
   "schema": "provoleta-public-menu",
   "version": "1.1.0",
-  "publishedAt": "2026-07-02T06:46:23.851Z",
+  "publishedAt": "2026-07-02T06:50:47.291Z",
   "store": {
     "name": "Pizzaria Provoleta",
     "whatsapp": "+55 77 9936-8373",
@@ -42,6 +42,12 @@
       "name": "Frango Catupiry",
       "categoryId": "1782974592938_oun4ahs",
       "imageUrl": "https://imgs.search.brave.com/d82c7Fo8HiWyrj_rkfAjRpB2MDnnMhsHXBbeWeRBLqw/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9zdDUu/ZGVwb3NpdHBob3Rv/cy5jb20vMTY3Mjkx/Ny82NjA2My9pLzQ1/MC9kZXBvc2l0cGhv/dG9zXzY2MDYzMTM0/NC1zdG9jay1waG90/by1jaGVlc2UtY2F0/dXBpcnktY2hpY2tl/bi1waXp6YS5qcGc"
+    },
+    {
+      "id": "1782974910494_0fhow0x",
+      "name": "Atum",
+      "categoryId": "1782974592938_bpdd79c",
+      "imageUrl": "https://imgs.search.brave.com/wzhTaJLYRf_ii_phWpD_XUOVG9nAlcYEUbsJfIwzFYE/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9pLnBp/bmltZy5jb20vb3Jp/Z2luYWxzLzE1Lzg1/L2QyLzE1ODVkMmZj/MDE1YTE3YjIzMDhi/MzAwZjAyNGY1NzY4/LmpwZw"
     }
   ],
   "drinks": [
@@ -51,6 +57,13 @@
       "priceLata": 6,
       "price1L": 10,
       "imageUrl": "https://images.unsplash.com/photo-1625772299848-391b6a87d7b3?auto=format&fit=crop&w=800&q=80"
+    },
+    {
+      "id": "1782975042514_hyjwqxt",
+      "name": "Pepsi",
+      "priceLata": 5,
+      "price1L": 10,
+      "imageUrl": "https://imgs.search.brave.com/HDIVYGCM2OquOQwaf19r1vLX06Fha_wOy4Jh6LT6WDo/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9jbGFz/c2ljbGFuY2hlcy5j/b20uYnIvd3AtY29u/dGVudC91cGxvYWRz/LzIwMjMvMTEvcmVm/cmlnZXJhbnRlX3Bl/cHNpX2NvbGFfMWxf/MjQ5MTFfMV9kMDJk/NDI1NGU5Y2ZlNDA4/MGE5ZjZjNjc4MzEw/NzhiYi53ZWJw"
     }
   ],
   "neighborhoods": [
