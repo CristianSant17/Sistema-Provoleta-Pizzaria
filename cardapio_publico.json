@@ -1,7 +1,7 @@
 {
   "schema": "provoleta-public-menu",
   "version": "1.1.0",
-  "publishedAt": "2026-07-02T04:05:34.989Z",
+  "publishedAt": "2026-07-02T06:46:23.851Z",
   "store": {
     "name": "Pizzaria Provoleta",
     "whatsapp": "+55 77 9936-8373",
@@ -10,14 +10,14 @@
   },
   "categories": [
     {
-      "id": "1782963919241_br26i2h",
+      "id": "1782974592938_oun4ahs",
       "name": "Tradicional",
       "priceP": 32,
       "priceM": 42,
       "priceG": 52
     },
     {
-      "id": "1782963919241_at7k807",
+      "id": "1782974592938_bpdd79c",
       "name": "Premium",
       "priceP": 38,
       "priceM": 48,
@@ -26,21 +26,27 @@
   ],
   "flavors": [
     {
-      "id": "1782963919241_f5v4e70",
+      "id": "1782974592938_7ecfggi",
       "name": "Calabresa",
-      "categoryId": "1782963919241_br26i2h",
-      "imageUrl": "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80"
+      "categoryId": "1782974592938_oun4ahs",
+      "imageUrl": "https://imgs.search.brave.com/qTahVUHpvwF6uhUz0qkyM2ViSo4Xas8GB_DmsmABKaw/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9zdGF0/aWMuaXRkZy5jb20u/YnIvaW1hZ2VzLzY0/MC00MDAvNjY5ZmMy/ZGFlMDdjZTIzNjZi/NWEyYzhmNDEzZTg5/YmYvMzAzNTgzLW9y/aWdpbmFsLmpwZw"
     },
     {
-      "id": "1782963919241_db7l0x9",
+      "id": "1782974592938_e7sg787",
       "name": "Quatro Queijos",
-      "categoryId": "1782963919241_at7k807",
-      "imageUrl": "https://images.unsplash.com/photo-1548365328-8c6db3220e4c?auto=format&fit=crop&w=800&q=80"
+      "categoryId": "1782974592938_oun4ahs",
+      "imageUrl": "https://imgs.search.brave.com/tmmWUh_9R4Eml6Uewd6C5evkcsPJe_MgIS3AW_4SRCY/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9tZWRp/YS5nZXR0eWltYWdl/cy5jb20vaWQvNjY1/MzE1ODUyL3B0L2Zv/dG8vcGl6emEtcXVh/dHJvLWZyb21hZ2kt/b24tYS13aGl0ZS1i/YWNrZ3JvdW5kLXdp/dGgtaW5ncmVkaWVu/dHMtYXJvdW5kLmpw/Zz9zPTYxMng2MTIm/dz0wJms9MjAmYz1M/WWtlXzJyTG1HdS1U/QkZCa1hfcHVzOTI0/RWdSdG5Uc0pFWHMx/X3F0Tl8wPQ"
+    },
+    {
+      "id": "1782974764245_5nmrbyk",
+      "name": "Frango Catupiry",
+      "categoryId": "1782974592938_oun4ahs",
+      "imageUrl": "https://imgs.search.brave.com/d82c7Fo8HiWyrj_rkfAjRpB2MDnnMhsHXBbeWeRBLqw/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9zdDUu/ZGVwb3NpdHBob3Rv/cy5jb20vMTY3Mjkx/Ny82NjA2My9pLzQ1/MC9kZXBvc2l0cGhv/dG9zXzY2MDYzMTM0/NC1zdG9jay1waG90/by1jaGVlc2UtY2F0/dXBpcnktY2hpY2tl/bi1waXp6YS5qcGc"
     }
   ],
   "drinks": [
     {
-      "id": "1782963919241_fxsb0o0",
+      "id": "1782974592938_dpmylov",
       "name": "Coca-Cola",
       "priceLata": 6,
       "price1L": 10,
@@ -49,29 +55,29 @@
   ],
   "neighborhoods": [
     {
-      "id": "1782963919241_uz7yzqj",
+      "id": "1782974592938_k0b2f4x",
       "name": "Centro",
       "fee": 5
     },
     {
-      "id": "1782963919241_smoubbh",
+      "id": "1782974592938_x5swgqa",
       "name": "Jardim América",
       "fee": 8
     }
   ],
   "additionals": [
     {
-      "id": "1782963919241_vib8dbi",
+      "id": "1782974592938_gdmwr9v",
       "name": "Borda de Catupiry",
       "price": 8
     },
     {
-      "id": "1782963919241_bokapmk",
+      "id": "1782974592938_jgd7bul",
       "name": "Queijo Extra",
       "price": 5
     },
     {
-      "id": "1782963919241_l81zygj",
+      "id": "1782974592938_lzxp3me",
       "name": "Bacon",
       "price": 6
     }
