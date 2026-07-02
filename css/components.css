@@ -201,6 +201,26 @@
   transition: border-color 220ms ease-in-out, box-shadow 220ms ease-in-out, background-color 220ms ease-in-out;
 }
 
+/* Force consistent select appearance across platforms (fix white background/text issue) */
+.form-select,
+select,
+.form-select:focus,
+select:focus {
+  background: var(--bg-input) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border) !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+}
+
+/* Attempt to style dropdown options for better contrast (may be ignored by some browsers) */
+.form-select option,
+select option {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
 .form-input:focus,
 .form-select:focus,
 .form-textarea:focus {

@@ -12,18 +12,20 @@ export function seedIfNeeded() {
 
   const catId = uid();
   const catId2 = uid();
-
   const config = {
     categories: [
-      { id: catId, name: 'Tradicional', priceP: 32, priceM: 42, priceG: 52 },
-      { id: catId2, name: 'Premium', priceP: 38, priceM: 48, priceG: 58 },
+      { id: '1782982685193_jy1fc2m', name: 'Tradicional', priceP: 32, priceM: 42, priceG: 52 },
+      { id: '1782982685193_ziws1wu', name: 'Premium', priceP: 38, priceM: 48, priceG: 58 },
     ],
     flavors: [
-      { id: uid(), name: 'Calabresa', categoryId: catId, imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80' },
-      { id: uid(), name: 'Quatro Queijos', categoryId: catId2, imageUrl: 'https://images.unsplash.com/photo-1548365328-8c6db3220e4c?auto=format&fit=crop&w=800&q=80' },
+      { id: '1782982720170_30kqug9', name: 'Calabresa', categoryId: '1782982685193_jy1fc2m', imageUrl: 'https://images.unsplash.com/photo-1625772299848-391b6a87d7b3?auto=format&fit=crop&w=800&q=80', extraImages: [], ingredients: ['mussarela','calabresa','cebola'] },
+      { id: 'seed_frango_01', name: 'Frango', categoryId: '1782982685193_jy1fc2m', imageUrl: 'https://images.unsplash.com/photo-1604908177522-2d4bdc9b6b40?auto=format&fit=crop&w=800&q=80', extraImages: [], ingredients: ['mussarela','frango','cebola'] },
+      { id: 'seed_frango_catupiry_01', name: 'Frango Catupiry', categoryId: '1782982685193_jy1fc2m', imageUrl: 'https://images.unsplash.com/photo-1546069901-eacef0df6022?auto=format&fit=crop&w=800&q=80', extraImages: [], ingredients: ['mussarela','frango','catupiry'] },
+      { id: 'seed_mussarela_01', name: 'Mussarela', categoryId: '1782982685193_jy1fc2m', imageUrl: 'https://images.unsplash.com/photo-1542281286-9e0a16bb7366?auto=format&fit=crop&w=800&q=80', extraImages: [], ingredients: ['mussarela'] },
     ],
     drinks: [
-      { id: uid(), name: 'Coca-Cola', priceLata: 6, price1L: 10, imageUrl: 'https://images.unsplash.com/photo-1625772299848-391b6a87d7b3?auto=format&fit=crop&w=800&q=80' },
+      { id: '1782982685193_lxdmsq0', name: 'Coca-Cola', priceLata: 6, price1L: 10, imageUrl: 'https://images.unsplash.com/photo-1625772299848-391b6a87d7b3?auto=format&fit=crop&w=800&q=80' },
+      { id: 'seed_pepsi_01', name: 'Pepsi', priceLata: 6, price1L: 10, imageUrl: 'https://images.unsplash.com/photo-1551782450-a2132b4ba21d?auto=format&fit=crop&w=800&q=80' },
     ],
     neighborhoods: [
       { id: uid(), name: 'Centro', fee: 5 },

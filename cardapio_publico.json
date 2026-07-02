@@ -37,6 +37,31 @@
         "cebola"
       ]
     }
+    ,
+    {
+      "id": "seed_frango_01",
+      "name": "Frango",
+      "categoryId": "1782982685193_jy1fc2m",
+      "imageUrl": "https://images.unsplash.com/photo-1604908177522-2d4bdc9b6b40?auto=format&fit=crop&w=800&q=80",
+      "extraImages": [],
+      "ingredients": ["mussarela","frango","cebola"]
+    },
+    {
+      "id": "seed_frango_catupiry_01",
+      "name": "Frango Catupiry",
+      "categoryId": "1782982685193_jy1fc2m",
+      "imageUrl": "https://images.unsplash.com/photo-1546069901-eacef0df6022?auto=format&fit=crop&w=800&q=80",
+      "extraImages": [],
+      "ingredients": ["mussarela","frango","catupiry"]
+    },
+    {
+      "id": "seed_mussarela_01",
+      "name": "Mussarela",
+      "categoryId": "1782982685193_jy1fc2m",
+      "imageUrl": "https://images.unsplash.com/photo-1542281286-9e0a16bb7366?auto=format&fit=crop&w=800&q=80",
+      "extraImages": [],
+      "ingredients": ["mussarela"]
+    }
   ],
   "drinks": [
     {
@@ -45,6 +70,14 @@
       "priceLata": 6,
       "price1L": 10,
       "imageUrl": "https://images.unsplash.com/photo-1625772299848-391b6a87d7b3?auto=format&fit=crop&w=800&q=80"
+    }
+    ,
+    {
+      "id": "seed_pepsi_01",
+      "name": "Pepsi",
+      "priceLata": 6,
+      "price1L": 10,
+      "imageUrl": "https://images.unsplash.com/photo-1551782450-a2132b4ba21d?auto=format&fit=crop&w=800&q=80"
     }
   ],
   "neighborhoods": [
