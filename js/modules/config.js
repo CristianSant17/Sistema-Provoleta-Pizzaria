@@ -10,6 +10,20 @@ import { toast, confirmModal, initTabs, emptyState, tableActions, openFormModal 
 
 let activeTab = 'categorias';
 
+function parseExtraImages(value) {
+  return String(value || '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function parseIngredients(value) {
+  return String(value || '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
 export function renderConfigPage(container) {
   const config = getConfig();
   const publicMenu = getPublicMenuSnapshot();
@@ -90,10 +104,11 @@ function renderFlavorsPanel(config) {
 
   const rows = config.flavors.map((f) => {
     const cat = config.categories.find((c) => c.id === f.categoryId);
+    const imageCount = (f.extraImages?.length || 0) + (f.imageUrl ? 1 : 0);
     return `<tr>
       <td><strong>${escapeHtml(f.name)}</strong></td>
       <td>${cat ? escapeHtml(cat.name) : '—'}</td>
-      <td>${f.imageUrl ? '<span class="tag tag--ok">Com imagem</span>' : '<span class="tag tag--pending">Sem imagem</span>'}</td>
+      <td>${imageCount ? `<span class="tag tag--ok">${imageCount} foto${imageCount > 1 ? 's' : ''}</span>` : '<span class="tag tag--pending">Sem imagem</span>'}</td>
       <td>${tableActions(`data-edit-flavor="${f.id}"`, `data-delete-flavor="${f.id}"`)}</td>
     </tr>`;
   }).join('');
@@ -108,6 +123,8 @@ function renderFlavorsPanel(config) {
           <select class="form-select" name="categoryId" required ${!config.categories.length ? 'disabled' : ''}>
             <option value="">Selecione...</option>${catOptions}
           </select></div>
+        <div class="form-group form-group--full"><label class="form-label">Ingredientes (separados por vírgula)</label>
+          <input class="form-input" name="ingredients" placeholder="mussarela, frango, milho"></div>
         <div class="form-group form-group--full"><label class="form-label">Link da Imagem (opcional)</label>
           <input class="form-input" name="imageUrl" placeholder="https://... ou /assets/..."></div>
         <button type="submit" class="btn btn--primary" ${!config.categories.length ? 'disabled' : ''}>+ Adicionar</button>
@@ -204,7 +221,7 @@ function renderTeamPanel(config) {
       <div class="card__header"><h3 class="card__title">Motoboys</h3></div>
       <form id="formMotoboy" class="inline-form">
         <div class="form-group"><label class="form-label">Nome do Motoboy</label>
-          <input class="form-input" name="name" required placeholder="Ex: Carlos"></div>
+          <input class="form-input" name="name" required placeholder="Ex: Cristian"></div>
         <button type="submit" class="btn btn--primary">+ Adicionar</button>
       </form>
       ${config.motoboys.length ? `
@@ -280,7 +297,14 @@ function bindConfigEvents(container) {
     e.preventDefault();
     const fd = new FormData(e.target);
     const config = getConfig();
-    config.flavors.push({ id: uid(), name: fd.get('name').trim(), categoryId: fd.get('categoryId'), imageUrl: fd.get('imageUrl').toString().trim() });
+    config.flavors.push({
+      id: uid(),
+      name: fd.get('name').trim(),
+      categoryId: fd.get('categoryId'),
+      imageUrl: fd.get('imageUrl').toString().trim(),
+      extraImages: parseExtraImages(fd.get('extraImages')),
+      ingredients: parseIngredients(fd.get('ingredients')),
+    });
     saveConfig(config);
     toast('Sabor adicionado!', 'success');
     renderConfigPage(container);
@@ -388,6 +412,8 @@ function bindConfigEvents(container) {
               <input class="form-input" name="name" value="${escapeHtml(item.name)}" required></div>
             <div class="form-group"><label class="form-label">Categoria</label>
               <select class="form-select" name="categoryId" required>${catOptions}</select></div>
+            <div class="form-group form-group--full"><label class="form-label">Ingredientes (separados por vírgula)</label>
+              <input class="form-input" name="ingredients" value="${escapeHtml((item.ingredients || []).join(', '))}" placeholder="mussarela, frango, milho"></div>
             <div class="form-group form-group--full"><label class="form-label">Link da Imagem</label>
               <input class="form-input" name="imageUrl" value="${escapeHtml(item.imageUrl || '')}" placeholder="https://... ou /assets/..."></div>
           </div>`,
@@ -395,6 +421,8 @@ function bindConfigEvents(container) {
           item.name = fd.get('name').trim();
           item.categoryId = fd.get('categoryId');
           item.imageUrl = fd.get('imageUrl').toString().trim();
+          item.extraImages = parseExtraImages(fd.get('extraImages'));
+          item.ingredients = parseIngredients(fd.get('ingredients'));
           saveConfig(config);
           toast('Sabor atualizado!', 'success');
           renderConfigPage(container);

@@ -5,6 +5,16 @@
 
 import { PUBLIC_MENU_SCHEMA, DEFAULT_WHATSAPP_FORMATTED } from './constants.js';
 
+function normalizeImageList(value) {
+  if (Array.isArray(value)) {
+    return value.map((entry) => String(entry || '').trim()).filter(Boolean);
+  }
+  if (typeof value === 'string') {
+    return value.split(',').map((entry) => entry.trim()).filter(Boolean);
+  }
+  return [];
+}
+
 /** Monta o objeto cardapio_publico.json a partir dos cadastros locais */
 export function buildPublicMenu(config, storeSettings) {
   return {
@@ -20,7 +30,9 @@ export function buildPublicMenu(config, storeSettings) {
     categories: (config.categories || []).map(({ id, name, priceP, priceM, priceG }) => ({
       id, name, priceP, priceM, priceG,
     })),
-    flavors: (config.flavors || []).map(({ id, name, categoryId, imageUrl }) => ({ id, name, categoryId, imageUrl })),
+    flavors: (config.flavors || []).map(({ id, name, categoryId, imageUrl, extraImages, ingredients }) => ({
+      id, name, categoryId, imageUrl, extraImages: normalizeImageList(extraImages), ingredients: normalizeImageList(ingredients),
+    })),
     drinks: (config.drinks || []).map(({ id, name, priceLata, price1L, imageUrl }) => ({
       id, name, priceLata, price1L, imageUrl,
     })),
@@ -58,7 +70,7 @@ export function normalizePublicMenu(raw) {
     return {
       store: raw.store,
       categories: raw.categories || [],
-      flavors: raw.flavors || [],
+      flavors: (raw.flavors || []).map((flavor) => ({ ...flavor, extraImages: normalizeImageList(flavor?.extraImages), ingredients: normalizeImageList(flavor?.ingredients) })),
       drinks: raw.drinks || [],
       neighborhoods: raw.neighborhoods || [],
       additionals: raw.additionals || [],
@@ -75,7 +87,7 @@ export function normalizePublicMenu(raw) {
         openHours: raw.openHours || raw.store?.openHours || '',
       },
       categories: raw.categories || [],
-      flavors: raw.flavors || [],
+      flavors: (raw.flavors || []).map((flavor) => ({ ...flavor, extraImages: normalizeImageList(flavor?.extraImages), ingredients: normalizeImageList(flavor?.ingredients) })),
       drinks: raw.drinks || [],
       neighborhoods: raw.neighborhoods || [],
       additionals: raw.additionals || [],

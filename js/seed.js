@@ -27,10 +27,10 @@ export function seedIfNeeded() {
     ],
     neighborhoods: [
       { id: uid(), name: 'Centro', fee: 5 },
-      { id: uid(), name: 'Jardim América', fee: 8 },
+      { id: uid(), name: 'Vila Pres. Vargas', fee: 10 },
     ],
     motoboys: [
-      { id: uid(), name: 'Carlos', active: true },
+      { id: uid(), name: 'Cristian', active: true },
     ],
     channels: [
       { id: uid(), name: 'WhatsApp' },

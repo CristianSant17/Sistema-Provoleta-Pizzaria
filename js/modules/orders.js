@@ -14,7 +14,129 @@ import {
 import { toast, confirmModal, renderPagination, statusTag, emptyState, tableActions, openFormModal } from '../ui.js';
 
 const PAGE_SIZE = 10;
-let listState = { page: 1, status: '', motoboy: '', payment: '' };
+const QUICK_ORDER_STORAGE_KEY = 'provoleta_quick_order_defaults';
+let listState = { page: 1, status: '', motoboy: '', payment: '', deliveryMode: '' };
+
+function readQuickOrderDefaults() {
+  try {
+    return JSON.parse(localStorage.getItem(QUICK_ORDER_STORAGE_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveQuickOrderDefaults(formEl) {
+  const payload = {
+    itemType: formEl.querySelector('.item-type-btn.active')?.dataset.type || 'pizza',
+    flavorId: formEl.querySelector('#flavorSelect')?.value || '',
+    pizzaSize: formEl.querySelector('#pizzaSize')?.value || '',
+    drinkId: formEl.querySelector('#drinkSelect')?.value || '',
+    drinkSize: formEl.querySelector('#drinkSize')?.value || '',
+    quantity: formEl.querySelector('#quantity')?.value || '1',
+    orderMode: formEl.querySelector('#orderMode')?.value || 'delivery',
+    neighborhoodId: formEl.querySelector('#neighborhood')?.value || '',
+    motoboyId: formEl.querySelector('#motoboy')?.value || '',
+    channelId: formEl.querySelector('#channel')?.value || '',
+    paymentMethod: formEl.querySelector('#payment')?.value || '',
+    observations: formEl.querySelector('#observations')?.value || '',
+  };
+  localStorage.setItem(QUICK_ORDER_STORAGE_KEY, JSON.stringify(payload));
+}
+
+function setOrderFormType(formEl, itemType) {
+  const buttons = formEl.querySelectorAll('.item-type-btn');
+  buttons.forEach((btn) => btn.classList.toggle('active', btn.dataset.type === itemType));
+  const pizzaFields = formEl.querySelector('#pizzaFields');
+  const drinkFields = formEl.querySelector('#drinkFields');
+  if (pizzaFields) pizzaFields.style.display = itemType === 'pizza' ? 'block' : 'none';
+  if (drinkFields) drinkFields.style.display = itemType === 'bebida' ? 'block' : 'none';
+}
+
+function applyQuickOrderDefaults(formEl) {
+  const defaults = readQuickOrderDefaults();
+  if (!Object.keys(defaults).length) return;
+
+  const itemType = defaults.itemType || 'pizza';
+  setOrderFormType(formEl, itemType);
+
+  if (itemType === 'pizza') {
+    const flavorSelect = formEl.querySelector('#flavorSelect');
+    if (flavorSelect) {
+      flavorSelect.value = defaults.flavorId || '';
+      flavorSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    const pizzaSize = formEl.querySelector('#pizzaSize');
+    if (pizzaSize) {
+      pizzaSize.value = defaults.pizzaSize || '';
+      pizzaSize.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  } else {
+    const drinkSelect = formEl.querySelector('#drinkSelect');
+    if (drinkSelect) {
+      drinkSelect.value = defaults.drinkId || '';
+      drinkSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    const drinkSize = formEl.querySelector('#drinkSize');
+    if (drinkSize) {
+      drinkSize.value = defaults.drinkSize || '';
+      drinkSize.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+
+  const quantity = formEl.querySelector('#quantity');
+  if (quantity) quantity.value = defaults.quantity || '1';
+
+  const orderMode = formEl.querySelector('#orderMode');
+  if (orderMode) {
+    orderMode.value = defaults.orderMode || 'delivery';
+    orderMode.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  const channel = formEl.querySelector('#channel');
+  if (channel) channel.value = defaults.channelId || '';
+  const payment = formEl.querySelector('#payment');
+  if (payment) payment.value = defaults.paymentMethod || '';
+  const neighborhood = formEl.querySelector('#neighborhood');
+  if (neighborhood) neighborhood.value = defaults.neighborhoodId || '';
+  const motoboy = formEl.querySelector('#motoboy');
+  if (motoboy) motoboy.value = defaults.motoboyId || '';
+  const observations = formEl.querySelector('#observations');
+  if (observations) observations.value = defaults.observations || '';
+
+  const qtyInput = formEl.querySelector('#quantity');
+  if (qtyInput) qtyInput.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function applyOrderTemplate(formEl, template, defaultOrderNum) {
+  if (!template) return;
+
+  const itemType = template.type || 'pizza';
+  setOrderFormType(formEl, itemType);
+  formEl.querySelector('#orderNumber').value = template.orderNumber || defaultOrderNum;
+  formEl.querySelector('#orderDatetime').value = nowDatetimeLocal();
+  formEl.querySelector('#quantity').value = template.quantity || 1;
+  formEl.querySelector('#orderMode').value = template.deliveryMode === 'pickup' ? 'pickup' : 'delivery';
+  formEl.querySelector('#channel').value = template.channelId || '';
+  formEl.querySelector('#payment').value = template.paymentMethod || '';
+  formEl.querySelector('#neighborhood').value = template.neighborhoodId || '';
+  formEl.querySelector('#motoboy').value = template.motoboyId || '';
+  formEl.querySelector('#observations').value = template.observations || '';
+
+  if (itemType === 'pizza') {
+    formEl.querySelector('#flavorSelect').value = template.itemId || '';
+    formEl.querySelector('#pizzaSize').value = template.size || '';
+    formEl.querySelector('#flavorSelect').dispatchEvent(new Event('change', { bubbles: true }));
+    formEl.querySelector('#pizzaSize').dispatchEvent(new Event('change', { bubbles: true }));
+  } else {
+    formEl.querySelector('#drinkSelect').value = template.itemId || '';
+    formEl.querySelector('#drinkSize').value = template.size || '';
+    formEl.querySelector('#drinkSelect').dispatchEvent(new Event('change', { bubbles: true }));
+    formEl.querySelector('#drinkSize').dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  formEl.querySelector('#orderMode').dispatchEvent(new Event('change', { bubbles: true }));
+  formEl.querySelector('#quantity').dispatchEvent(new Event('input', { bubbles: true }));
+}
 
 export function renderOrdersPage(container, { year, month }) {
   const config = getConfig();
@@ -35,7 +157,13 @@ export function renderOrdersPage(container, { year, month }) {
 
     <div class="pedidos-layout">
       <div class="card pedido-form-card">
-        <div class="card__header"><h3 class="card__title">Novo Pedido</h3></div>
+        <div class="card__header">
+          <h3 class="card__title">Novo Pedido</h3>
+          <div class="table-actions">
+            <button type="button" class="btn btn--secondary btn--sm" id="resetOrderFormBtn">Limpar</button>
+            <button type="button" class="btn btn--secondary btn--sm" id="duplicateLastOrderBtn">↺ Repetir último</button>
+          </div>
+        </div>
         <form id="orderForm">${buildOrderFormHTML(config, null, orderNum)}</form>
       </div>
 
@@ -65,6 +193,14 @@ export function renderOrdersPage(container, { year, month }) {
               <option value="dinheiro">Dinheiro</option>
               <option value="pix">Pix</option>
               <option value="cartao">Cartão</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Modo</label>
+            <select class="form-select" id="filterMode">
+              <option value="">Todos</option>
+              <option value="delivery">Entrega</option>
+              <option value="pickup">Retirada</option>
             </select>
           </div>
         </div>
@@ -166,15 +302,11 @@ function buildOrderFormHTML(config, order, defaultOrderNum) {
 
     <div class="form-grid">
       <div class="form-group">
-        <label class="form-label">Bairro</label>
-        <select class="form-select" id="neighborhood" required>
-          <option value="">Selecione...</option>
-          ${config.neighborhoods.map((n) => `<option value="${n.id}" data-fee="${n.fee}" ${order?.neighborhoodId === n.id ? 'selected' : ''}>${escapeHtml(n.name)}</option>`).join('')}
+        <label class="form-label">Modo de Pedido</label>
+        <select class="form-select" id="orderMode">
+          <option value="delivery" ${order?.deliveryMode !== 'pickup' ? 'selected' : ''}>Entrega</option>
+          <option value="pickup" ${order?.deliveryMode === 'pickup' ? 'selected' : ''}>Retirada</option>
         </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Taxa de Entrega</label>
-        <input class="form-input form-input--locked" id="deliveryFee" readonly value="${formatMoney(order?.deliveryFee ?? 0)}">
       </div>
       <div class="form-group">
         <label class="form-label">Canal de Venda</label>
@@ -183,9 +315,20 @@ function buildOrderFormHTML(config, order, defaultOrderNum) {
           ${config.channels.map((c) => `<option value="${c.id}" ${order?.channelId === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
         </select>
       </div>
-      <div class="form-group">
+      <div class="form-group" id="neighborhoodGroup" style="display:${order?.deliveryMode === 'pickup' ? 'none' : 'block'}">
+        <label class="form-label">Bairro</label>
+        <select class="form-select" id="neighborhood">
+          <option value="">Selecione...</option>
+          ${config.neighborhoods.map((n) => `<option value="${n.id}" data-fee="${n.fee}" ${order?.neighborhoodId === n.id ? 'selected' : ''}>${escapeHtml(n.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group" id="deliveryFeeGroup" style="display:${order?.deliveryMode === 'pickup' ? 'none' : 'block'}">
+        <label class="form-label">Taxa de Entrega</label>
+        <input class="form-input form-input--locked" id="deliveryFee" readonly value="${formatMoney(order?.deliveryFee ?? 0)}">
+      </div>
+      <div class="form-group" id="motoboyGroup" style="display:${order?.deliveryMode === 'pickup' ? 'none' : 'block'}">
         <label class="form-label">Motoboy</label>
-        <select class="form-select" id="motoboy" required>
+        <select class="form-select" id="motoboy">
           <option value="">Selecione...</option>
           ${config.motoboys.filter((m) => m.active || order?.motoboyId === m.id).map((m) =>
             `<option value="${m.id}" ${order?.motoboyId === m.id ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('')}
@@ -224,16 +367,38 @@ function bindOrderForm(formEl, config, order, onReady) {
   const els = {
     flavorSelect: formEl.querySelector('#flavorSelect'),
     pizzaSize: formEl.querySelector('#pizzaSize'),
+    orderMode: formEl.querySelector('#orderMode'),
     drinkSelect: formEl.querySelector('#drinkSelect'),
     drinkSize: formEl.querySelector('#drinkSize'),
     quantity: formEl.querySelector('#quantity'),
     unitPrice: formEl.querySelector('#unitPrice'),
     neighborhood: formEl.querySelector('#neighborhood'),
+    neighborhoodGroup: formEl.querySelector('#neighborhoodGroup'),
     deliveryFee: formEl.querySelector('#deliveryFee'),
+    deliveryFeeGroup: formEl.querySelector('#deliveryFeeGroup'),
+    motoboy: formEl.querySelector('#motoboy'),
+    motoboyGroup: formEl.querySelector('#motoboyGroup'),
     orderTotal: formEl.querySelector('#orderTotal'),
     pizzaFields: formEl.querySelector('#pizzaFields'),
     drinkFields: formEl.querySelector('#drinkFields'),
   };
+
+  function updateDeliveryModeUI() {
+    const isDelivery = els.orderMode?.value === 'delivery';
+    if (els.neighborhoodGroup) els.neighborhoodGroup.style.display = isDelivery ? 'block' : 'none';
+    if (els.deliveryFeeGroup) els.deliveryFeeGroup.style.display = isDelivery ? 'block' : 'none';
+    if (els.motoboyGroup) els.motoboyGroup.style.display = isDelivery ? 'block' : 'none';
+
+    if (!isDelivery) {
+      currentDeliveryFee = 0;
+      if (els.neighborhood) els.neighborhood.value = '';
+      if (els.motoboy) els.motoboy.value = '';
+    } else {
+      currentDeliveryFee = parseFloat(els.neighborhood?.selectedOptions[0]?.dataset.fee) || 0;
+    }
+    if (els.deliveryFee) els.deliveryFee.value = formatMoney(currentDeliveryFee);
+    calcTotal();
+  }
 
   function calcTotal() {
     const qty = parseInt(els.quantity.value, 10) || 1;
@@ -283,6 +448,7 @@ function bindOrderForm(formEl, config, order, onReady) {
   });
   els.drinkSize?.addEventListener('change', updateUnitPrice);
 
+  els.orderMode?.addEventListener('change', updateDeliveryModeUI);
   els.neighborhood?.addEventListener('change', () => {
     currentDeliveryFee = parseFloat(els.neighborhood.selectedOptions[0]?.dataset.fee) || 0;
     els.deliveryFee.value = formatMoney(currentDeliveryFee);
@@ -296,7 +462,9 @@ function bindOrderForm(formEl, config, order, onReady) {
     dtInput.addEventListener('change', function () { this.dataset.edited = '1'; });
   }
 
+  updateDeliveryModeUI();
   formEl._orderFormState = { getItemType: () => itemType, calcTotal, getPrices: () => ({ currentUnitPrice, currentDeliveryFee }) };
+  if (!order) applyQuickOrderDefaults(formEl);
   if (onReady) onReady();
 }
 
@@ -311,8 +479,11 @@ function collectOrderData(formEl, config) {
   if (itemType === 'bebida' && (!formEl.querySelector('#drinkSelect').value || !formEl.querySelector('#drinkSize').value)) {
     toast('Selecione a bebida e o tamanho.', 'error'); return null;
   }
-  if (!formEl.querySelector('#neighborhood').value || !formEl.querySelector('#channel').value ||
-      !formEl.querySelector('#motoboy').value || !formEl.querySelector('#payment').value) {
+  const deliveryMode = formEl.querySelector('#orderMode').value;
+  if (deliveryMode === 'delivery' && (!formEl.querySelector('#neighborhood').value || !formEl.querySelector('#motoboy').value)) {
+    toast('Para entregas, selecione bairro e motoboy.', 'error'); return null;
+  }
+  if (!formEl.querySelector('#channel').value || !formEl.querySelector('#payment').value) {
     toast('Preencha todos os campos obrigatórios.', 'error'); return null;
   }
 
@@ -331,10 +502,11 @@ function collectOrderData(formEl, config) {
     type: itemType, itemId, itemName, size, categoryId,
     quantity: parseInt(formEl.querySelector('#quantity').value, 10) || 1,
     unitPrice: currentUnitPrice,
-    neighborhoodId: formEl.querySelector('#neighborhood').value,
-    deliveryFee: currentDeliveryFee,
+    deliveryMode,
+    neighborhoodId: deliveryMode === 'delivery' ? formEl.querySelector('#neighborhood').value : '',
+    deliveryFee: deliveryMode === 'delivery' ? currentDeliveryFee : 0,
     channelId: formEl.querySelector('#channel').value,
-    motoboyId: formEl.querySelector('#motoboy').value,
+    motoboyId: deliveryMode === 'delivery' ? formEl.querySelector('#motoboy').value : '',
     paymentMethod: formEl.querySelector('#payment').value,
     observations: formEl.querySelector('#observations').value.trim(),
     total: state.calcTotal(),
@@ -362,6 +534,7 @@ function bindOrderFormSubmit(container, ctx, existingOrder) {
       orders.push({ id: uid(), ...data, status: 'pendente' });
       saveOrders(year, month, orders);
       syncOrderCounter(year, month, data.orderNumber);
+      saveQuickOrderDefaults(form);
       toast(`Pedido #${data.orderNumber} lançado!`, 'success');
       listState.page = 1;
     }
@@ -398,6 +571,7 @@ function renderOrdersTable(container, allOrders, config, ctx) {
   if (listState.status) filtered = filtered.filter((o) => o.status === listState.status);
   if (listState.motoboy) filtered = filtered.filter((o) => o.motoboyId === listState.motoboy);
   if (listState.payment) filtered = filtered.filter((o) => o.paymentMethod === listState.payment);
+  if (listState.deliveryMode) filtered = filtered.filter((o) => (o.deliveryMode || 'delivery') === listState.deliveryMode);
   filtered.sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -415,7 +589,7 @@ function renderOrdersTable(container, allOrders, config, ctx) {
     <div class="table-wrapper"><table class="data-table">
       <thead><tr>
         <th>Nº</th><th>Data/Hora</th><th>Item</th><th>Qtd</th>
-        <th>Total</th><th>Pagamento</th><th>Motoboy</th><th>Status</th><th>Ações</th>
+        <th>Total</th><th>Pagamento</th><th>Modo</th><th>Motoboy</th><th>Status</th><th>Ações</th>
       </tr></thead>
       <tbody>${pageOrders.map((o) => {
         const motoboy = config.motoboys.find((m) => m.id === o.motoboyId);
@@ -426,6 +600,7 @@ function renderOrdersTable(container, allOrders, config, ctx) {
           <td>${o.quantity}x</td>
           <td>${formatMoney(o.total)}</td>
           <td>${paymentLabel(o.paymentMethod)}</td>
+          <td>${(o.deliveryMode || 'delivery') === 'pickup' ? 'Retirada' : 'Entrega'}</td>
           <td>${motoboy ? escapeHtml(motoboy.name) : '—'}</td>
           <td>${statusTag(o.status)}</td>
           <td>
@@ -454,13 +629,53 @@ function bindOrderEvents(container, ctx) {
 
   bindOrderFormSubmit(container, ctx, null);
 
+  container.querySelector('#resetOrderFormBtn')?.addEventListener('click', () => {
+    const form = container.querySelector('#orderForm');
+    if (!form) return;
+    const pizzaBtn = form.querySelector('.item-type-btn[data-type="pizza"]');
+    if (pizzaBtn) pizzaBtn.click();
+    form.querySelector('#orderNumber').value = peekNextOrderNumber(year, month);
+    form.querySelector('#orderDatetime').value = nowDatetimeLocal();
+    form.querySelector('#flavorSelect').value = '';
+    form.querySelector('#pizzaSize').value = '';
+    form.querySelector('#drinkSelect').value = '';
+    form.querySelector('#drinkSize').value = '';
+    form.querySelector('#quantity').value = '1';
+    form.querySelector('#orderMode').value = 'delivery';
+    form.querySelector('#channel').value = '';
+    form.querySelector('#payment').value = '';
+    form.querySelector('#neighborhood').value = '';
+    form.querySelector('#motoboy').value = '';
+    form.querySelector('#observations').value = '';
+    form.querySelector('#pizzaSize').disabled = true;
+    form.querySelector('#drinkSize').disabled = true;
+    form.querySelector('#orderMode').dispatchEvent(new Event('change', { bubbles: true }));
+    form.querySelector('#flavorSelect').dispatchEvent(new Event('change', { bubbles: true }));
+    form.querySelector('#drinkSelect').dispatchEvent(new Event('change', { bubbles: true }));
+    form.querySelector('#quantity').dispatchEvent(new Event('input', { bubbles: true }));
+    toast('Formulário limpo e pronto para um novo pedido.', 'info');
+  });
+
+  container.querySelector('#duplicateLastOrderBtn')?.addEventListener('click', () => {
+    const form = container.querySelector('#orderForm');
+    const orders = getOrders(year, month);
+    const template = [...orders].sort((a, b) => new Date(b.datetime) - new Date(a.datetime))[0];
+    if (!template) {
+      toast('Ainda não há pedidos para repetir.', 'info');
+      return;
+    }
+    applyOrderTemplate(form, template, peekNextOrderNumber(year, month));
+    toast('Último pedido carregado como base.', 'info');
+  });
+
   container.querySelector('#filterStatus').value = listState.status;
   container.querySelector('#filterMotoboy').value = listState.motoboy;
   container.querySelector('#filterPayment').value = listState.payment;
+  container.querySelector('#filterMode').value = listState.deliveryMode;
 
-  ['filterStatus', 'filterMotoboy', 'filterPayment'].forEach((id) => {
+  ['filterStatus', 'filterMotoboy', 'filterPayment', 'filterMode'].forEach((id) => {
     container.querySelector(`#${id}`).addEventListener('change', (e) => {
-      const map = { filterStatus: 'status', filterMotoboy: 'motoboy', filterPayment: 'payment' };
+      const map = { filterStatus: 'status', filterMotoboy: 'motoboy', filterPayment: 'payment', filterMode: 'deliveryMode' };
       listState[map[id]] = e.target.value;
       listState.page = 1;
       renderOrdersTable(container, getOrders(year, month), config, ctx);
