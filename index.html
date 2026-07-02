@@ -25,7 +25,12 @@
       <p>Digite a senha de acesso para entrar no painel administrativo.</p>
       <form id="authForm" class="auth-form">
         <label class="form-label" for="accessPassword">Digite a Senha de Acesso</label>
-        <input class="form-input" id="accessPassword" name="password" type="password" autocomplete="current-password" placeholder="Senha mestre" required>
+        <div class="auth-password">
+          <input class="form-input auth-password__input" id="accessPassword" name="password" type="password" autocomplete="current-password" placeholder="Senha mestre" required>
+          <button type="button" class="auth-password__toggle" id="togglePassword" aria-label="Mostrar senha" aria-pressed="false">
+            <i class="fa-solid fa-eye"></i>
+          </button>
+        </div>
         <button type="submit" class="btn btn--primary">Entrar</button>
       </form>
       <p class="auth-hint">Senha padrão: JCProvoleta</p>

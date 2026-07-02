@@ -148,6 +148,21 @@ function initLogo() {
   }
 }
 
+function initPasswordToggle() {
+  const input = document.getElementById('accessPassword');
+  const toggle = document.getElementById('togglePassword');
+  if (!input || !toggle) return;
+
+  toggle.addEventListener('click', () => {
+    const isPassword = input.type === 'password';
+    input.type = isPassword ? 'text' : 'password';
+    toggle.setAttribute('aria-pressed', String(isPassword));
+    toggle.innerHTML = isPassword ? '<i class="fa-solid fa-eye-slash"></i>' : '<i class="fa-solid fa-eye"></i>';
+    toggle.setAttribute('aria-label', isPassword ? 'Ocultar senha' : 'Mostrar senha');
+    input.focus();
+  });
+}
+
 function init() {
   seedIfNeeded();
 
@@ -174,6 +189,7 @@ function init() {
   document.getElementById('authForm')?.addEventListener('submit', handleAuthSubmit);
   document.getElementById('logoutBtn')?.addEventListener('click', logoutAdmin);
 
+  initPasswordToggle();
   initSidebar();
   initLogo();
   updateClock();

@@ -494,6 +494,30 @@
   gap: 0.75rem;
 }
 
+.auth-password {
+  position: relative;
+}
+
+.auth-password__input {
+  padding-right: 3rem;
+}
+
+.auth-password__toggle {
+  position: absolute;
+  right: 0.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.auth-password__toggle:hover {
+  color: var(--text-primary);
+}
+
 .auth-hint {
   margin-top: 0.75rem;
   font-size: 0.8rem;
