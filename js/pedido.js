@@ -422,6 +422,127 @@ function renderDrinkBuilder() {
   });
 }
 
+function slugify(text) {
+  return String(text || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
+
+function categoryIcon(name) {
+  const normalized = String(name || '').toLowerCase();
+  if (normalized.includes('doce') || normalized.includes('sobremesa')) return '🍰';
+  if (normalized.includes('beb')) return '🥤';
+  return '🍕';
+}
+
+function getMenuCategories() {
+  const categories = [];
+  const seen = new Set();
+  (menu.categories || []).forEach((category) => {
+    if (!seen.has(category.id)) {
+      seen.add(category.id);
+      categories.push(category);
+    }
+  });
+
+  if (categories.length) return categories;
+
+  const fallbackName = menu.flavors.length ? 'Pizzas' : 'Itens';
+  return [{ id: 'fallback', name: fallbackName, priceP: 0, priceM: 0, priceG: 0 }];
+}
+
+function getCategoryFlavors(category) {
+  if (!category || category.id === 'fallback') {
+    return menu.flavors.filter((flavor) => !flavor.categoryId || flavor.categoryId === '');
+  }
+  return menu.flavors.filter((flavor) => flavor.categoryId === category.id);
+}
+
+function buildCategoryNavMarkup() {
+  const entries = [];
+  const categories = getMenuCategories();
+  categories.forEach((category) => {
+    const hasItems = getCategoryFlavors(category).length > 0;
+    if (hasItems) {
+      entries.push({ id: `cat-${slugify(category.name)}`, label: category.name, icon: categoryIcon(category.name) });
+    }
+  });
+
+  if (menu.drinks.length) {
+    entries.push({ id: 'cat-bebidas', label: 'Bebidas', icon: '🥤' });
+  }
+
+  if (!entries.length) return '';
+
+  return `
+    <nav class="pz-category-nav" aria-label="Categorias do cardápio">
+      ${entries.map((entry) => `<button type="button" class="pz-category-nav__btn" data-target="${entry.id}">${entry.icon} ${escapeHtml(entry.label)}</button>`).join('')}
+    </nav>`;
+}
+
+function buildCategorySectionsMarkup() {
+  const sections = [];
+  const categories = getMenuCategories();
+
+  categories.forEach((category) => {
+    const flavors = getCategoryFlavors(category);
+    if (!flavors.length) return;
+
+    sections.push(`
+      <section class="pz-menu-section" id="cat-${slugify(category.name)}">
+        <div class="pz-menu-section__head">
+          <div class="pz-menu-section__title">
+            <span class="pz-menu-section__icon">${categoryIcon(category.name)}</span>
+            <h4>${escapeHtml(category.name)}</h4>
+          </div>
+          <span class="pz-menu-section__count">${flavors.length} sabor${flavors.length > 1 ? 'es' : ''}</span>
+        </div>
+        <div class="pz-product-grid">
+          ${flavors.map((f) => {
+            const cat = menu.categories.find((c) => c.id === f.categoryId);
+            const from = cat ? formatMoney(Math.min(cat.priceP, cat.priceM, cat.priceG)) : '';
+            const image = f.imageUrl ? `<div class="pz-product-card__image"><img src="${f.imageUrl}" alt="${escapeHtml(f.name)}" loading="lazy"></div>` : `<div class="pz-product-card__image pz-product-card__image--fallback">🍕</div>`;
+            return `
+              <button type="button" class="pz-product-card pz-product-card--pizza ${selectedFlavorId === f.id ? 'selected' : ''}" data-flavor-id="${f.id}">
+                ${image}
+                <span class="pz-product-card__name">${escapeHtml(f.name)}</span>
+                ${cat ? `<span class="pz-product-card__meta">${escapeHtml(cat.name)} · a partir de ${from}</span>` : ''}
+              </button>`;
+          }).join('')}
+        </div>
+      </section>`);
+  });
+
+  if (menu.drinks.length) {
+    sections.push(`
+      <section class="pz-menu-section" id="cat-bebidas">
+        <div class="pz-menu-section__head">
+          <div class="pz-menu-section__title">
+            <span class="pz-menu-section__icon">🥤</span>
+            <h4>Bebidas Geladas</h4>
+          </div>
+          <span class="pz-menu-section__count">${menu.drinks.length} opção${menu.drinks.length > 1 ? 'ões' : ''}</span>
+        </div>
+        <div class="pz-product-grid">
+          ${menu.drinks.map((d) => {
+            const image = d.imageUrl ? `<div class="pz-product-card__image"><img src="${d.imageUrl}" alt="${escapeHtml(d.name)}" loading="lazy"></div>` : `<div class="pz-product-card__image pz-product-card__image--fallback">🥤</div>`;
+            return `
+              <button type="button" class="pz-product-card pz-product-card--drink ${selectedDrinkId === d.id ? 'selected' : ''}" data-drink-id="${d.id}">
+                ${image}
+                <span class="pz-product-card__name">${escapeHtml(d.name)}</span>
+                <span class="pz-product-card__meta">Lata ${formatMoney(d.priceLata)} · 1L ${formatMoney(d.price1L)}</span>
+              </button>`;
+          }).join('')}
+        </div>
+      </section>`);
+  }
+
+  return sections.join('');
+}
+
 function renderFlavorGrid() {
   return menu.flavors.map((f) => {
     const cat = menu.categories.find((c) => c.id === f.categoryId);
@@ -450,14 +571,24 @@ function renderDrinkGrid() {
   }).join('');
 }
 
-function switchMenuTab(tab) {
-  menuTab = tab;
-  selectedSize = null;
-  document.querySelectorAll('.pz-segment__btn').forEach((b) => {
-    b.classList.toggle('active', b.dataset.tab === tab);
-  });
-  document.getElementById('panelPizza').hidden = tab !== 'pizza';
-  document.getElementById('panelDrink').hidden = tab !== 'bebida';
+function renderBuilder() {
+  const pizzaEl = document.getElementById('pizzaBuilder');
+  const drinkEl = document.getElementById('drinkBuilder');
+
+  if (selectedFlavorId) {
+    if (drinkEl) drinkEl.innerHTML = '';
+    renderPizzaBuilder();
+    return;
+  }
+
+  if (selectedDrinkId) {
+    if (pizzaEl) pizzaEl.innerHTML = '';
+    renderDrinkBuilder();
+    return;
+  }
+
+  if (pizzaEl) pizzaEl.innerHTML = '<p class="pz-builder-hint">Toque em um item para escolher o tamanho</p>';
+  if (drinkEl) drinkEl.innerHTML = '';
 }
 
 function buildHighlightsMarkup() {
@@ -599,18 +730,14 @@ function renderApp() {
             <p>Escolha os itens e monte seu pedido</p>
           </div>
 
-          <div class="pz-segment">
-            ${hasPizza ? `<button type="button" class="pz-segment__btn ${menuTab === 'pizza' ? 'active' : ''}" data-tab="pizza">🍕 Pizzas</button>` : ''}
-            ${hasDrink ? `<button type="button" class="pz-segment__btn ${menuTab === 'bebida' ? 'active' : ''}" data-tab="bebida">🥤 Bebidas</button>` : ''}
+          ${buildCategoryNavMarkup()}
+          <div class="pz-category-sections">
+            ${buildCategorySectionsMarkup()}
           </div>
 
-          <div id="panelPizza" ${!hasPizza || menuTab !== 'pizza' ? 'hidden' : ''}>
-            <div class="pz-product-grid">${renderFlavorGrid()}</div>
-            <div class="pz-builder" id="pizzaBuilder"></div>
-          </div>
-          <div id="panelDrink" ${!hasDrink || menuTab === 'pizza' ? 'hidden' : ''}>
-            <div class="pz-product-grid">${renderDrinkGrid()}</div>
-            <div class="pz-builder" id="drinkBuilder"></div>
+          <div class="pz-builder" id="builderPanel">
+            <div id="pizzaBuilder"></div>
+            <div id="drinkBuilder"></div>
           </div>
         </section>` : ''}
 
@@ -692,42 +819,100 @@ function renderApp() {
     </footer>`;
 
   bindEvents();
-  if (hasPizza) renderPizzaBuilder();
-  if (hasDrink) renderDrinkBuilder();
+  renderBuilder();
   renderCart();
-  if (!hasPizza && hasDrink) switchMenuTab('bebida');
 }
 
 function bindEvents() {
-  document.querySelectorAll('.pz-segment__btn').forEach((btn) => {
+  const openCartDrawer = () => {
+    const cartPanel = document.getElementById('cartPanel');
+    if (cartPanel) {
+      cartPanel.classList.add('is-open');
+      cartPanel.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('pz-lock-scroll');
+    }
+  };
+
+  const closeCartDrawer = () => {
+    const cartPanel = document.getElementById('cartPanel');
+    if (cartPanel) {
+      cartPanel.classList.remove('is-open');
+      cartPanel.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('pz-lock-scroll');
+    }
+  };
+
+  document.querySelectorAll('.pz-category-nav__btn').forEach((btn) => {
     btn.addEventListener('click', () => {
-      switchMenuTab(btn.dataset.tab);
-      if (btn.dataset.tab === 'pizza') renderPizzaBuilder();
-      else renderDrinkBuilder();
+      const targetId = btn.dataset.target;
+      const target = document.getElementById(targetId);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     });
   });
+
+  const sections = Array.from(document.querySelectorAll('.pz-menu-section'));
+  const navButtons = Array.from(document.querySelectorAll('.pz-category-nav__btn'));
+
+  const setActiveCategory = (activeId) => {
+    navButtons.forEach((button) => {
+      button.classList.toggle('active', button.dataset.target === activeId);
+    });
+  };
+
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (visible) {
+        setActiveCategory(visible.target.id);
+        visible.target.classList.add('is-visible');
+      }
+    }, { rootMargin: '-25% 0px -55% 0px', threshold: [0.2, 0.4, 0.6] });
+
+    sections.forEach((section) => observer.observe(section));
+  } else {
+    const onScroll = () => {
+      const scrollY = window.scrollY + 140;
+      const current = sections.findLast((section) => scrollY >= section.offsetTop);
+      if (current) {
+        setActiveCategory(current.id);
+        current.classList.add('is-visible');
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
 
   document.querySelectorAll('.pz-product-card--pizza').forEach((card) => {
     card.addEventListener('click', () => {
       selectedFlavorId = card.dataset.flavorId;
+      selectedDrinkId = null;
       selectedSize = null;
       document.querySelectorAll('.pz-product-card--pizza').forEach((c) => {
         c.classList.toggle('selected', c.dataset.flavorId === selectedFlavorId);
       });
-      renderPizzaBuilder();
-      document.getElementById('pizzaBuilder')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      document.querySelectorAll('.pz-product-card--drink').forEach((c) => {
+        c.classList.remove('selected');
+      });
+      renderBuilder();
+      document.getElementById('builderPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   });
 
   document.querySelectorAll('.pz-product-card--drink').forEach((card) => {
     card.addEventListener('click', () => {
       selectedDrinkId = card.dataset.drinkId;
+      selectedFlavorId = null;
       selectedSize = null;
       document.querySelectorAll('.pz-product-card--drink').forEach((c) => {
         c.classList.toggle('selected', c.dataset.drinkId === selectedDrinkId);
       });
-      renderDrinkBuilder();
-      document.getElementById('drinkBuilder')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      document.querySelectorAll('.pz-product-card--pizza').forEach((c) => {
+        c.classList.remove('selected');
+      });
+      renderBuilder();
+      document.getElementById('builderPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   });
 
@@ -753,22 +938,16 @@ function bindEvents() {
 
   document.getElementById('whatsappBtn')?.addEventListener('click', sendWhatsApp);
   document.getElementById('whatsappBtnMobile')?.addEventListener('click', sendWhatsApp);
-  document.getElementById('floatingCart')?.addEventListener('click', () => {
-    const cartPanel = document.getElementById('cartPanel');
-    if (cartPanel) {
-      cartPanel.classList.add('is-open');
-      cartPanel.setAttribute('aria-hidden', 'false');
-    }
-  });
+  document.getElementById('floatingCart')?.addEventListener('click', openCartDrawer);
 
   document.querySelectorAll('[data-close-cart]').forEach((el) => {
-    el.addEventListener('click', () => {
-      const cartPanel = document.getElementById('cartPanel');
-      if (cartPanel) {
-        cartPanel.classList.remove('is-open');
-        cartPanel.setAttribute('aria-hidden', 'true');
-      }
-    });
+    el.addEventListener('click', closeCartDrawer);
+  });
+
+  document.getElementById('cartPanel')?.addEventListener('click', (event) => {
+    if (event.target.dataset.closeCart !== undefined) {
+      closeCartDrawer();
+    }
   });
 
   document.getElementById('whatsappBtnDrawer')?.addEventListener('click', sendWhatsApp);
