@@ -221,6 +221,44 @@ select option {
   color: var(--text-primary);
 }
 
+/* Stronger rules to avoid platform defaults overriding theme */
+.form-select,
+select.form-select,
+select {
+  background-color: var(--bg-input) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+  box-shadow: none !important;
+}
+
+.form-select::-ms-expand,
+select::-ms-expand {
+  display: none;
+}
+
+/* Ensure disabled state remains readable */
+.form-select:disabled,
+select:disabled {
+  background-color: var(--bg-elevated) !important;
+  color: var(--text-secondary) !important;
+  opacity: 1 !important;
+}
+
+/* Extra strong rules to override browser defaults (user reported background/text same color) */
+#mainContent select, #mainContent .form-select, .card select, .card .form-select {
+  background-color: var(--bg-input) !important;
+  color: var(--text-primary) !important;
+}
+
+#mainContent select option, #mainContent .form-select option, .card select option {
+  background-color: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+}
+
+select, .form-select {
+  -webkit-text-fill-color: var(--text-primary) !important;
+}
+
 .form-input:focus,
 .form-select:focus,
 .form-textarea:focus {
