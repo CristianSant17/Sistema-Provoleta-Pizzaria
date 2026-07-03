@@ -6,6 +6,7 @@
 import { formatMoney, escapeHtml, normalizeWhatsApp, whatsappUrl } from './utils.js';
 import { normalizePublicMenu } from './public-menu.js';
 import { PUBLIC_MENU_FILE, DEFAULT_WHATSAPP_NUMBER } from './constants.js';
+import { getFavoriteFlavors, saveFavoriteFlavors, toggleFavoriteFlavor, getLastOrder, saveLastOrder } from './storage.js';
 
 let menu = null;
 let cart = [];
@@ -17,6 +18,12 @@ let selectedDrinkId = null;
 let selectedSize = null;
 let customizationModal = null;
 let customizationState = null;
+let sidebarCollapsed = false;
+let favoriteFlavors = [];
+let lastOrder = null;
+let wallpaperCarouselTimer = null;
+let appliedCoupon = null;
+let couponMessage = '';
 
 async function loadMenu() {
   try {
@@ -36,6 +43,41 @@ function showToast(msg, error = false) {
   setTimeout(() => el.remove(), 3200);
 }
 
+function showValidationError(fieldId, message) {
+  const field = document.getElementById(fieldId);
+  if (!field) {
+    showToast(message, true);
+    return;
+  }
+  const wrapper = field.closest('.pz-field');
+  if (wrapper) wrapper.classList.add('pz-field--error');
+  field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  field.focus({ preventScroll: true });
+  setTimeout(() => {
+    if (wrapper) wrapper.classList.remove('pz-field--error');
+  }, 2400);
+  showToast(message, true);
+}
+
+function updateSidebarState() {
+  const sidebar = document.querySelector('.pz-sidebar');
+  const toggle = document.getElementById('pzSidebarToggle');
+  if (!sidebar || !toggle) return;
+  sidebar.classList.toggle('pz-sidebar--collapsed', sidebarCollapsed);
+  toggle.textContent = sidebarCollapsed ? 'Abrir sacola' : 'Fechar sacola';
+}
+
+function toggleSidebar() {
+  sidebarCollapsed = !sidebarCollapsed;
+  updateSidebarState();
+}
+
+function sendSupportWhatsApp() {
+  const text = 'Olá, queria ter um atendimento personalizado e tirar dúvidas.';
+  const url = whatsappUrl(normalizeWhatsApp(menu.store.whatsapp) || DEFAULT_WHATSAPP_NUMBER, text);
+  if (url) window.open(url, '_blank');
+}
+
 function calcItemPrice(type, itemId, size) {
   if (type === 'pizza') {
     const flavor = menu.flavors.find((f) => f.id === itemId);
@@ -52,6 +94,120 @@ function getFlavorPrices(flavorId) {
   const cat = menu.categories.find((c) => c.id === flavor?.categoryId);
   if (!cat) return null;
   return { P: cat.priceP, M: cat.priceM, G: cat.priceG, category: cat.name };
+}
+
+function isFavoriteFlavor(flavorId) {
+  return favoriteFlavors.includes(flavorId);
+}
+
+function formatOrderSummary(order) {
+  if (!order || !Array.isArray(order.items)) return '';
+  const items = order.items.map((item) => `${item.quantity}x ${item.name} (${sizeLabel(item.size)})`).join(', ');
+  const total = formatMoney(order.total || 0);
+  return `${items} · ${total}`;
+}
+
+function isCouponExpired(coupon) {
+  if (!coupon || !coupon.expiresAt) return false;
+  const expires = new Date(coupon.expiresAt);
+  return Number.isFinite(expires.getTime()) ? expires < new Date() : false;
+}
+
+function getActiveCoupon() {
+  if (!menu?.coupons?.length) return null;
+  const now = new Date();
+  return menu.coupons.find((coupon) => {
+    if (!coupon || !coupon.active) return false;
+    if (coupon.expiresAt && new Date(coupon.expiresAt) < now) return false;
+    return true;
+  }) || null;
+}
+
+function couponMatchesCart(coupon) {
+  if (!coupon) return false;
+  if (coupon.minOrderValue && cartSubtotal() < coupon.minOrderValue) return false;
+  if (coupon.productIds?.length) {
+    return cart.some((item) => coupon.productIds.includes(item.itemId));
+  }
+  return true;
+}
+
+function findCouponByCode(code) {
+  if (!menu?.coupons?.length || !code) return null;
+  const norm = String(code || '').trim().toLowerCase();
+  return menu.coupons.find((c) => String(c.code || '').trim().toLowerCase() === norm) || null;
+}
+
+function computeCouponDiscount(coupon) {
+  if (!coupon) return 0;
+  const subtotal = cartSubtotal();
+  if (coupon.type === 'percent' && coupon.value) {
+    return Math.min(subtotal, subtotal * (parseFloat(coupon.value) / 100));
+  }
+  if (coupon.type === 'fixed' && coupon.value) {
+    return Math.min(subtotal, parseFloat(coupon.value));
+  }
+  return 0;
+}
+
+function applyCouponCode(code) {
+  couponMessage = '';
+  const coupon = findCouponByCode(code);
+  if (!coupon) { couponMessage = 'Cupom não encontrado.'; showToast(couponMessage, true); renderCart(); return false; }
+  if (!coupon.active || isCouponExpired(coupon)) { couponMessage = 'Cupom inválido ou expirado.'; showToast(couponMessage, true); renderCart(); return false; }
+  if (coupon.minOrderValue && cartSubtotal() < coupon.minOrderValue) {
+    couponMessage = `Requer pedido mínimo de ${formatMoney(coupon.minOrderValue)}.`;
+    showToast(couponMessage, true);
+    renderCart();
+    return false;
+  }
+  if (coupon.productIds?.length && !couponMatchesCart(coupon)) {
+    couponMessage = 'Adicione os produtos elegíveis para usar este cupom.';
+    showToast(couponMessage, true);
+    renderCart();
+    return false;
+  }
+  appliedCoupon = coupon;
+  couponMessage = `Cupom ${coupon.code} aplicado.`;
+  showToast(couponMessage);
+  renderCart();
+  return true;
+}
+
+function removeAppliedCoupon() {
+  if (!appliedCoupon) return;
+  const code = appliedCoupon.code;
+  appliedCoupon = null;
+  couponMessage = '';
+  showToast(`Cupom ${code} removido.`);
+  renderCart();
+}
+
+function buildCouponBannerMarkup() {
+  const coupon = getActiveCoupon();
+  if (!coupon) return '';
+
+  const pieces = [];
+  if (coupon.freeShipping) pieces.push('Frete grátis');
+  if (coupon.type === 'percent' && coupon.value) pieces.push(`${parseFloat(coupon.value)}% de desconto`);
+  if (coupon.type === 'fixed' && coupon.value) pieces.push(`R$ ${formatMoney(coupon.value)} de desconto`);
+  if (!coupon.freeShipping && !coupon.type) pieces.push('Promoção ativa');
+  if (coupon.minOrderValue) pieces.push(`A partir de ${formatMoney(coupon.minOrderValue)}`);
+  if (coupon.productIds?.length) pieces.push('Produtos selecionados');
+  const qualifies = couponMatchesCart(coupon);
+  return `
+    <section class="pz-coupon-banner">
+      <div>
+        <p class="pz-coupon-banner__eyebrow">Cupom ativo</p>
+        <h3>${escapeHtml(coupon.code)}</h3>
+        <p>${escapeHtml(coupon.description || pieces.join(' · ') || 'Oferta disponível para seu pedido')}</p>
+        <small>${qualifies ? 'Seu pedido já pode usar este cupom.' : 'Adicione itens para aproveitar esta oferta.'}</small>
+      </div>
+      <div class="pz-coupon-banner__meta">
+        ${coupon.expiresAt ? `<span>Válido até ${new Date(coupon.expiresAt).toLocaleDateString('pt-BR')}</span>` : ''}
+        <span class="pz-coupon-banner__status">${coupon.active ? 'Ativo' : 'Inativo'}</span>
+      </div>
+    </section>`;
 }
 
 function sizeLabel(size) {
@@ -87,6 +243,10 @@ function getFlavorImageMarkup(flavor, fallback = '🍕') {
   return `<div class="pz-product-card__image pz-product-card__image--fallback">${fallback}</div>`;
 }
 
+function escapeCssUrl(url) {
+  return String(url || '').replace(/'/g, "\\'");
+}
+
 function getFlavorCategoryLabel(flavor) {
   const category = menu?.categories?.find((c) => c.id === flavor?.categoryId);
   return category?.name || 'Sabor';
@@ -117,7 +277,10 @@ function cartSubtotal() {
 }
 
 function cartTotal() {
-  return cartSubtotal() + (cart.length ? deliveryFee : 0);
+  const subtotal = cartSubtotal();
+  const discount = appliedCoupon && couponMatchesCart(appliedCoupon) ? computeCouponDiscount(appliedCoupon) : 0;
+  const effectiveDelivery = appliedCoupon && appliedCoupon.freeShipping ? 0 : (cart.length ? deliveryFee : 0);
+  return Math.max(0, subtotal - discount) + effectiveDelivery;
 }
 
 function cartCount() {
@@ -136,10 +299,20 @@ function renderCart() {
   const drawerList = document.getElementById('cartDrawerList');
   const drawerSummary = document.getElementById('cartDrawerSummary');
   const drawerTotal = document.getElementById('cartDrawerTotal');
+  const drawerHeaderCount = document.getElementById('cartDrawerCount');
+  const drawerHeaderSubtotal = document.getElementById('cartDrawerSubtotal');
   const floatingCartLabel = document.getElementById('floatingCartLabel');
   const floatingCartTotal = document.getElementById('floatingCartTotal');
 
   const count = cartCount();
+  // Auto-apply active coupon if none applied
+  if (!appliedCoupon) {
+    const active = getActiveCoupon();
+    if (active && couponMatchesCart(active)) {
+      appliedCoupon = active;
+      showToast(`Cupom ${active.code} aplicado automaticamente.`);
+    }
+  }
   if (badge) {
     badge.textContent = count;
     badge.hidden = count === 0;
@@ -167,6 +340,8 @@ function renderCart() {
       </div>`;
     if (drawerSummary) drawerSummary.innerHTML = '';
     if (drawerTotal) drawerTotal.textContent = zero;
+    if (drawerHeaderCount) drawerHeaderCount.textContent = '0 itens';
+    if (drawerHeaderSubtotal) drawerHeaderSubtotal.textContent = `Subtotal ${zero}`;
     return;
   }
 
@@ -189,8 +364,14 @@ function renderCart() {
 
   summary.innerHTML = `
     <div class="pz-summary-row"><span>Subtotal</span><span>${formatMoney(cartSubtotal())}</span></div>
+    ${appliedCoupon && couponMatchesCart(appliedCoupon) ? `<div class="pz-summary-row pz-summary-row--discount"><span>Cupom ${escapeHtml(appliedCoupon.code)}</span><span>-${formatMoney(computeCouponDiscount(appliedCoupon))} <button type="button" id="removeCouponBtn" class="pz-link-btn">Remover</button></span></div>` : ''}
     <div class="pz-summary-row"><span>${orderMode === 'pickup' ? 'Retirada' : 'Taxa de entrega'}</span><span>${formatMoney(deliveryFee)}</span></div>
-    <div class="pz-summary-row pz-summary-row--total"><span>Total</span><span>${formatMoney(cartTotal())}</span></div>`;
+    <div class="pz-summary-row pz-summary-row--total"><span>Total</span><span>${formatMoney(cartTotal())}</span></div>
+    <div class="pz-summary-row pz-summary-row--coupon">
+      <input id="couponCode" placeholder="Código do cupom" />
+      <button type="button" id="applyCouponBtn">Aplicar</button>
+    </div>
+    ${couponMessage ? `<div class="pz-coupon-message">${escapeHtml(couponMessage)}</div>` : ''}`;
 
   const total = formatMoney(cartTotal());
   if (btn) btn.disabled = false;
@@ -199,9 +380,22 @@ function renderCart() {
   if (sidebarTotal) sidebarTotal.textContent = total;
   if (floatingCart) {
     floatingCart.hidden = false;
+    floatingCart.onclick = openCartDrawer;
     if (floatingCartLabel) floatingCartLabel.textContent = `Ver Sacola (${count} itens)`;
     if (floatingCartTotal) floatingCartTotal.textContent = total;
   }
+
+  if (drawerHeaderCount) drawerHeaderCount.textContent = `${count} item${count > 1 ? 's' : ''}`;
+  if (drawerHeaderSubtotal) drawerHeaderSubtotal.textContent = `Subtotal ${formatMoney(cartSubtotal())}`;
+  if (drawerSummary) drawerSummary.innerHTML = `
+    ${appliedCoupon && couponMatchesCart(appliedCoupon) ? `<div class="pz-summary-row pz-summary-row--discount"><span>Cupom ${escapeHtml(appliedCoupon.code)}</span><span>-${formatMoney(computeCouponDiscount(appliedCoupon))} <button type="button" id="removeCouponBtnDrawer" class="pz-link-btn">Remover</button></span></div>` : ''}
+    <div class="pz-summary-row"><span>${orderMode === 'pickup' ? 'Retirada' : 'Taxa de entrega'}</span><span>${formatMoney(deliveryFee)}</span></div>
+    <div class="pz-summary-row pz-summary-row--total"><span>Total</span><span>${total}</span></div>
+    <div class="pz-summary-row pz-summary-row--coupon">
+      <input id="couponCodeDrawer" placeholder="Código do cupom" />
+      <button type="button" id="applyCouponBtnDrawer">Aplicar</button>
+    </div>
+    ${couponMessage ? `<div class="pz-coupon-message">${escapeHtml(couponMessage)}</div>` : ''}`;
 
   if (drawerList) {
     drawerList.innerHTML = cart.map((item, idx) => {
@@ -222,19 +416,94 @@ function renderCart() {
     }).join('');
   }
 
-  if (drawerSummary) {
-    drawerSummary.innerHTML = `
-      <div class="pz-summary-row"><span>Subtotal</span><span>${formatMoney(cartSubtotal())}</span></div>
-      <div class="pz-summary-row"><span>${orderMode === 'pickup' ? 'Retirada' : 'Taxa de entrega'}</span><span>${formatMoney(deliveryFee)}</span></div>
-      <div class="pz-summary-row pz-summary-row--total"><span>Total</span><span>${formatMoney(cartTotal())}</span></div>`;
+  // Bind coupon controls
+  const applyBtn = document.getElementById('applyCouponBtn');
+  const couponInput = document.getElementById('couponCode');
+  if (applyBtn && couponInput) {
+    applyBtn.onclick = () => applyCouponCode(couponInput.value.trim());
+  }
+  const applyBtnDrawer = document.getElementById('applyCouponBtnDrawer');
+  const couponInputDrawer = document.getElementById('couponCodeDrawer');
+  if (applyBtnDrawer && couponInputDrawer) {
+    applyBtnDrawer.onclick = () => applyCouponCode(couponInputDrawer.value.trim());
   }
 
-  if (drawerTotal) drawerTotal.textContent = total;
+  const removeBtn = document.getElementById('removeCouponBtn');
+  if (removeBtn) removeBtn.onclick = removeAppliedCoupon;
+  const removeBtnDrawer = document.getElementById('removeCouponBtnDrawer');
+  if (removeBtnDrawer) removeBtnDrawer.onclick = removeAppliedCoupon;
+}
+
+function openCartDrawer() {
+  const cartPanel = document.getElementById('cartPanel');
+  const floatingCart = document.getElementById('floatingCart');
+  if (cartPanel) {
+    cartPanel.classList.add('is-open');
+    cartPanel.removeAttribute('inert');
+    cartPanel.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('pz-lock-scroll');
+  }
+  if (floatingCart) {
+    floatingCart.hidden = true;
+  }
+}
+
+function closeCartDrawer() {
+  const cartPanel = document.getElementById('cartPanel');
+  const floatingCart = document.getElementById('floatingCart');
+  if (cartPanel) {
+    cartPanel.classList.remove('is-open');
+    cartPanel.setAttribute('inert', '');
+    cartPanel.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('pz-lock-scroll');
+  }
+  if (floatingCart) {
+    floatingCart.hidden = cartCount() === 0;
+  }
+
+  const fallbackTarget = document.getElementById('whatsappBtn') || document.getElementById('whatsappBtnMobile') || document.querySelector('.pz-sidebar-toggle');
+  if (fallbackTarget && typeof fallbackTarget.focus === 'function') {
+    fallbackTarget.focus({ preventScroll: true });
+  }
+}
+
+function findInvalidField() {
+  const formFields = [
+    'customerName',
+    'customerPhone',
+    orderMode === 'delivery' ? 'neighborhood' : null,
+    orderMode === 'delivery' ? 'customerAddress' : null,
+    'payment'
+  ].filter(Boolean);
+  return formFields.find((fieldId) => {
+    const field = document.getElementById(fieldId);
+    return field && !field.value.trim();
+  });
+}
+
+function openPaymentSection() {
+  const paymentSection = document.getElementById('orderDetailsSection');
+  if (paymentSection) {
+    paymentSection.classList.add('pz-section--open');
+    paymentSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+function validateOrderForm() {
+  if (!document.getElementById('customerName').value.trim()) { openPaymentSection(); showValidationError('customerName', 'Informe seu nome.'); return false; }
+  if (!document.getElementById('customerPhone').value.trim()) { openPaymentSection(); showValidationError('customerPhone', 'Informe seu telefone.'); return false; }
+  if (orderMode === 'delivery') {
+    if (!document.getElementById('neighborhood').value) { openPaymentSection(); showValidationError('neighborhood', 'Selecione o bairro.'); return false; }
+    if (!document.getElementById('customerAddress').value.trim()) { openPaymentSection(); showValidationError('customerAddress', 'Informe o endereço.'); return false; }
+  }
+  if (!document.getElementById('payment').value) { openPaymentSection(); showValidationError('payment', 'Selecione a forma de pagamento.'); return false; }
+  return true;
 }
 
 function addItemToCart({ type, item, size, quantity, basePrice, selectedAdditionals = [] }) {
   const unitPrice = basePrice + selectedAdditionals.reduce((sum, extra) => sum + (extra.price || 0), 0);
   cart.push({
+    itemId: item.id,
     type,
     name: item.name,
     size,
@@ -666,6 +935,7 @@ function renderBuilder() {
       builder.className = 'pz-inline-builder';
       cardEntry.insertAdjacentElement('afterend', builder);
       renderPizzaBuilder(builder);
+      builder.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
     return;
   }
@@ -677,46 +947,64 @@ function renderBuilder() {
       builder.className = 'pz-inline-builder';
       cardEntry.insertAdjacentElement('afterend', builder);
       renderDrinkBuilder(builder);
+      builder.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }
+}
+
+function getShowcaseWallpaperImages(flavors) {
+  const images = flavors.flatMap((flavor) => getFlavorImageUrls(flavor));
+  return [...new Set(images.filter(Boolean))];
 }
 
 function buildPizzaShowcaseMarkup() {
   const pizzas = (menu.flavors || []).filter(Boolean);
   if (!pizzas.length) return '';
 
+  const wallpaperImages = getShowcaseWallpaperImages(pizzas);
+  const wallpaperSlides = wallpaperImages.map((image, index) => `
+      <div class="pz-showcase__wallpaper-slide${index === 0 ? ' is-active' : ''}" style="background-image:url('${escapeCssUrl(image)}')"></div>`).join('');
+
   return `
-    <section class="pz-showcase">
-      <div class="pz-showcase__head">
-        <div>
-          <p class="pz-showcase__eyebrow">Pizzas em destaque</p>
-          <h3>Escolha pelo sabor e confira as imagens disponíveis</h3>
-        </div>
+    <section class="pz-showcase pz-showcase--wallpaper">
+      <div class="pz-showcase__wallpaper">
+        ${wallpaperSlides}
       </div>
-      <div class="pz-showcase__viewport">
-        <div class="pz-showcase__carousel" id="showcaseCarousel">
-          ${pizzas.map((flavor) => {
-            const imageUrls = getFlavorImageUrls(flavor);
-            const ingredients = Array.isArray(flavor?.ingredients)
-              ? flavor.ingredients.filter(Boolean)
-              : (typeof flavor?.ingredients === 'string' ? flavor.ingredients.split(',').map((entry) => entry.trim()).filter(Boolean) : []);
-            return `
-              <button type="button" class="pz-showcase__card" data-showcase-flavor="${flavor.id}">
-                <div class="pz-showcase__media">
-                  ${imageUrls[0] ? `<img src="${imageUrls[0]}" alt="${escapeHtml(flavor.name)}" loading="lazy">` : '<div class="pz-showcase__media-fallback">🍕</div>'}
-                  <span class="pz-showcase__badge">${escapeHtml(flavor.name)}</span>
-                </div>
-                <div class="pz-showcase__content">
-                  <span class="pz-showcase__meta">${escapeHtml(getFlavorCategoryLabel(flavor))}</span>
-                  <p class="pz-showcase__description">${escapeHtml(getFlavorDescription(flavor))}</p>
-                  ${ingredients.length ? `<div class="pz-showcase__tags">${ingredients.map((ingredient) => `<span class="pz-showcase__tag">${escapeHtml(ingredient)}</span>`).join('')}</div>` : ''}
-                  <strong>Escolher sabor</strong>
-                </div>
-              </button>`;
-          }).join('')}
+      <div class="pz-showcase__wallpaper-mask"></div>
+      <div class="pz-showcase__wallpaper-body">
+        <div class="pz-showcase__head">
+          <div>
+            <p class="pz-showcase__eyebrow">Pizzas em destaque</p>
+            <h3>Os sabores agora são parte do cenário</h3>
+            <p class="pz-showcase__subtext">Um papel de parede inspirado nas pizzas mais pedidas, com o cardápio aparecendo em primeiro plano.</p>
+          </div>
         </div>
       </div>
     </section>`;
+}
+
+function stopWallpaperCarousel() {
+  if (wallpaperCarouselTimer) {
+    window.clearInterval(wallpaperCarouselTimer);
+    wallpaperCarouselTimer = null;
+  }
+}
+
+function startWallpaperCarousel() {
+  stopWallpaperCarousel();
+  const slides = Array.from(document.querySelectorAll('.pz-showcase__wallpaper-slide'));
+  if (slides.length <= 1) return;
+
+  let current = slides.findIndex((slide) => slide.classList.contains('is-active'));
+  if (current < 0) current = 0;
+  slides.forEach((slide, index) => slide.classList.toggle('is-active', index === current));
+
+  wallpaperCarouselTimer = window.setInterval(() => {
+    const next = (current + 1) % slides.length;
+    slides[current].classList.remove('is-active');
+    slides[next].classList.add('is-active');
+    current = next;
+  }, 4200);
 }
 
 function buildWhatsAppMessage() {
@@ -748,20 +1036,28 @@ function buildWhatsAppMessage() {
     lines.push(`${i + 1}. ${item.quantity}x ${item.name} (${sizeLabel(item.size)})${details} — ${formatMoney(item.unitPrice * item.quantity)}`);
   });
   lines.push('', ` *Taxa de entrega:* ${formatMoney(deliveryFee)}`, ` *TOTAL: ${formatMoney(cartTotal())}*`, '', ` *Pagamento:* ${paymentLabel(payment)}`);
+  if (appliedCoupon && couponMatchesCart(appliedCoupon)) {
+    const discount = computeCouponDiscount(appliedCoupon);
+    lines.splice(lines.length - 2, 0, ` *Cupom:* ${appliedCoupon.code} — -${formatMoney(discount)}`);
+  }
   if (obs) lines.push(` *Obs:* ${obs}`);
   lines.push('', `_Pedido online · ${new Date().toLocaleString('pt-BR')}_`);
   return lines.join('\n');
 }
 
 function sendWhatsApp() {
-  if (!document.getElementById('customerName').value.trim()) { showToast('Informe seu nome.', true); return; }
-  if (!document.getElementById('customerPhone').value.trim()) { showToast('Informe seu telefone.', true); return; }
-  if (orderMode === 'delivery') {
-    if (!document.getElementById('neighborhood').value) { showToast('Selecione o bairro.', true); return; }
-    if (!document.getElementById('customerAddress').value.trim()) { showToast('Informe o endereço.', true); return; }
-  }
-  if (!document.getElementById('payment').value) { showToast('Selecione o pagamento.', true); return; }
+  if (!validateOrderForm()) return;
   if (!cart.length) { showToast('Adicione itens ao pedido.', true); return; }
+  const nextLastOrder = {
+    items: cart.map((item) => ({ ...item })),
+    total: cartTotal(),
+    deliveryFee,
+    orderMode,
+    coupon: appliedCoupon ? { id: appliedCoupon.id, code: appliedCoupon.code, value: appliedCoupon.value, type: appliedCoupon.type } : null,
+    createdAt: new Date().toISOString(),
+  };
+  saveLastOrder(nextLastOrder);
+  lastOrder = nextLastOrder;
   const url = whatsappUrl(normalizeWhatsApp(menu.store.whatsapp) || DEFAULT_WHATSAPP_NUMBER, buildWhatsAppMessage());
   if (url) window.open(url, '_blank');
 }
@@ -773,6 +1069,19 @@ function renderUnavailable() {
       <h1>Cardápio indisponível</h1>
       <p>Arquivo <code>${PUBLIC_MENU_FILE}</code> não encontrado.</p>
     </div>`;
+}
+
+function renderLastOrderBanner() {
+  if (!lastOrder || !lastOrder.items?.length) return '';
+  return `
+    <section class="pz-last-order-banner">
+      <div>
+        <p class="pz-showcase__eyebrow">Último pedido</p>
+        <h3>Repetir seu último pedido?</h3>
+        <p>${escapeHtml(formatOrderSummary(lastOrder))}</p>
+      </div>
+      <button type="button" class="pz-btn-add-cart pz-btn-reorder" id="reorderBtn">Repetir pedido</button>
+    </section>`;
 }
 
 function updateOrderModeUI() {
@@ -827,6 +1136,8 @@ function renderApp() {
       </div>
     </section>
 
+    ${buildCouponBannerMarkup()}
+    ${renderLastOrderBanner()}
     ${buildPizzaShowcaseMarkup()}
 
     <div class="pz-layout">
@@ -845,7 +1156,7 @@ function renderApp() {
 
         </section>` : ''}
 
-        <section class="pz-section">
+        <section class="pz-section" id="orderDetailsSection">
           <div class="pz-section__head">
             <h3>Dados para entrega</h3>
             <p>Onde enviamos seu pedido?</p>
@@ -884,7 +1195,10 @@ function renderApp() {
         <div class="pz-sidebar__sticky">
           <div class="pz-sacola">
             <div class="pz-sacola__head">
-              <h3>Sua sacola</h3>
+              <div>
+                <h3>Sua sacola</h3>
+                <button type="button" class="pz-sidebar-toggle" id="pzSidebarToggle">Fechar sacola</button>
+              </div>
               <span id="sidebarTotal" class="pz-sacola__total">${formatMoney(0)}</span>
             </div>
             <div class="pz-sacola__body" id="cartList"></div>
@@ -911,6 +1225,10 @@ function renderApp() {
         <div class="pz-cart-drawer__header">
           <div>
             <h3>Sua sacola</h3>
+            <div class="pz-cart-drawer__header-meta">
+              <span id="cartDrawerCount">0 itens</span>
+              <span id="cartDrawerSubtotal">Subtotal R$ 0,00</span>
+            </div>
             <p id="cartDrawerTotal">R$ 0,00</p>
           </div>
           <button type="button" class="pz-cart-drawer__close" data-close-cart aria-label="Fechar sacola">✕</button>
@@ -927,31 +1245,19 @@ function renderApp() {
         <strong id="footerTotal">${formatMoney(0)}</strong>
       </div>
       <button type="button" class="pz-mobile-bar__btn" id="whatsappBtnMobile" disabled>Enviar pedido</button>
-    </footer>`;
+    </footer>
+    <button type="button" class="pz-support-btn" id="pzSupportBtn">
+      <span class="pz-support-btn__icon"><img style="width: 200%; height: 100%;" src="assets/whatsapp-icon.png" alt="WhatsApp"></span>
+    </button>`;
 
   bindEvents();
   renderBuilder();
   renderCart();
+  updateSidebarState();
+  startWallpaperCarousel();
 }
 
 function bindEvents() {
-  const openCartDrawer = () => {
-    const cartPanel = document.getElementById('cartPanel');
-    if (cartPanel) {
-      cartPanel.classList.add('is-open');
-      cartPanel.setAttribute('aria-hidden', 'false');
-      document.body.classList.add('pz-lock-scroll');
-    }
-  };
-
-  const closeCartDrawer = () => {
-    const cartPanel = document.getElementById('cartPanel');
-    if (cartPanel) {
-      cartPanel.classList.remove('is-open');
-      cartPanel.setAttribute('aria-hidden', 'true');
-      document.body.classList.remove('pz-lock-scroll');
-    }
-  };
 
   document.querySelectorAll('.pz-category-nav__btn').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -1032,67 +1338,30 @@ function bindEvents() {
         card.classList.toggle('selected', card.dataset.flavorId === selectedFlavorId);
       });
       document.querySelectorAll('.pz-product-card--drink').forEach((card) => card.classList.remove('selected'));
-      document.querySelectorAll('.pz-showcase__card').forEach((card) => card.classList.remove('is-active'));
-      button.classList.add('is-active');
-      setTimeout(() => button.classList.remove('is-active'), 220);
       renderBuilder();
     });
   });
 
-  const showcaseViewport = document.querySelector('.pz-showcase__viewport');
-  const showcaseCarousel = document.getElementById('showcaseCarousel');
-  if (showcaseViewport && showcaseCarousel) {
-    let autoplayTimer = null;
-
-    const getStep = () => {
-      const card = showcaseCarousel.querySelector('.pz-showcase__card');
-      if (!card) return 260;
-      const cardWidth = card.getBoundingClientRect().width;
-      return cardWidth + 12;
-    };
-
-    const scrollShowcase = (direction = 1) => {
-      const maxScroll = Math.max(0, showcaseCarousel.scrollWidth - showcaseViewport.clientWidth);
-      const step = getStep();
-      const next = direction > 0
-        ? Math.min(showcaseViewport.scrollLeft + step, maxScroll)
-        : Math.max(showcaseViewport.scrollLeft - step, 0);
-
-      if (next >= maxScroll && direction > 0) {
-        showcaseViewport.scrollTo({ left: 0, behavior: 'smooth' });
-      } else {
-        showcaseViewport.scrollTo({ left: next, behavior: 'smooth' });
-      }
-    };
-
-    const startAutoplay = () => {
-      if (autoplayTimer) window.clearInterval(autoplayTimer);
-      autoplayTimer = window.setInterval(() => {
-        if (!document.hidden) scrollShowcase(1);
-      }, 2800);
-    };
-
-    const stopAutoplay = () => {
-      if (autoplayTimer) {
-        window.clearInterval(autoplayTimer);
-        autoplayTimer = null;
-      }
-    };
-
-    showcaseViewport.addEventListener('mouseenter', stopAutoplay);
-    showcaseViewport.addEventListener('mouseleave', startAutoplay);
-    showcaseViewport.addEventListener('touchstart', stopAutoplay, { passive: true });
-    showcaseViewport.addEventListener('touchend', startAutoplay, { passive: true });
-    startAutoplay();
-  }
-
-  document.querySelectorAll('[data-showcase-scroll]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const carousel = document.getElementById('showcaseCarousel');
-      if (!carousel) return;
-      const delta = window.innerWidth < 640 ? 220 : 260;
-      carousel.scrollBy({ left: button.dataset.showcaseScroll === 'next' ? delta : -delta, behavior: 'smooth' });
+  document.querySelectorAll('[data-favorite-flavor]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const flavorId = button.dataset.favoriteFlavor;
+      if (!flavorId) return;
+      favoriteFlavors = toggleFavoriteFlavor(flavorId);
+      renderApp();
     });
+  });
+
+  document.getElementById('reorderBtn')?.addEventListener('click', () => {
+    if (!lastOrder || !Array.isArray(lastOrder.items)) return;
+    cart = lastOrder.items.map((item) => ({ ...item }));
+    deliveryFee = lastOrder.deliveryFee || deliveryFee;
+    orderMode = lastOrder.orderMode || orderMode;
+    const orderModeSelect = document.getElementById('orderModeSelect');
+    if (orderModeSelect) orderModeSelect.value = orderMode;
+    updateOrderModeUI();
+    renderCart();
+    showToast('Último pedido carregado na sacola!');
   });
 
   document.getElementById('orderModeSelect')?.addEventListener('change', (e) => {
@@ -1122,6 +1391,8 @@ function bindEvents() {
 
   document.getElementById('whatsappBtn')?.addEventListener('click', sendWhatsApp);
   document.getElementById('whatsappBtnMobile')?.addEventListener('click', sendWhatsApp);
+  document.getElementById('pzSidebarToggle')?.addEventListener('click', toggleSidebar);
+  document.getElementById('pzSupportBtn')?.addEventListener('click', sendSupportWhatsApp);
   document.getElementById('floatingCart')?.addEventListener('click', openCartDrawer);
 
   document.querySelectorAll('[data-close-cart]').forEach((el) => {
@@ -1144,10 +1415,13 @@ async function init() {
     renderUnavailable();
     return;
   }
+  menu.coupons = menu.coupons || [];
   menu.flavors = menu.flavors || [];
   menu.drinks = menu.drinks || [];
   menu.categories = menu.categories || [];
   menu.neighborhoods = menu.neighborhoods || [];
+  favoriteFlavors = getFavoriteFlavors();
+  lastOrder = getLastOrder();
   menuTab = menu.flavors.length ? 'pizza' : 'bebida';
   renderApp();
 }

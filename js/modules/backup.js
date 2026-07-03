@@ -16,8 +16,8 @@ export function renderBackupPage(container) {
 
   container.innerHTML = `
     <div class="page-header">
-      <h1 class="page-header__title">Backup e Publicação</h1>
-      <p class="page-header__subtitle">Backup interno (LocalStorage) e cardápio JSON para clientes</p>
+      <h1 class="page-header__title">Backup e Exportação</h1>
+      <p class="page-header__subtitle">Backup interno (LocalStorage) e exportação do cardápio JSON para o site público</p>
     </div>
 
     <!-- Cardápio público — fluxo principal -->
@@ -30,7 +30,7 @@ export function renderBackupPage(container) {
       <div class="publish-flow">
         <div class="publish-step"><span class="publish-step__num">1</span><span>Cadastre sabores, bebidas e bairros em <strong>Cadastros</strong></span></div>
         <div class="publish-step"><span class="publish-step__num">2</span><span>Configure a loja abaixo e exporte o JSON</span></div>
-        <div class="publish-step"><span class="publish-step__num">3</span><span>Substitua <code>${PUBLIC_MENU_FILE}</code> no projeto e envie pelo <strong>GitHub</strong></span></div>
+        <div class="publish-step"><span class="publish-step__num">3</span><span>Use o arquivo <code>${PUBLIC_MENU_FILE}</code> na pasta do site público</span></div>
         <div class="publish-step"><span class="publish-step__num">4</span><span>Clientes acessam apenas <code>${CLIENT_ORDER_PAGE}</code> — leem o JSON, sem LocalStorage</span></div>
       </div>
 
@@ -90,7 +90,7 @@ export function renderBackupPage(container) {
 
     <div class="backup-warning">
       <strong>Dois arquivos, dois propósitos</strong>
-      <code>${PUBLIC_MENU_FILE}</code> → cardápio público para clientes (GitHub).
+      <code>${PUBLIC_MENU_FILE}</code> → cardápio público para clientes (arquivo JSON exportado).
       <code>backup_provoleta_*.json</code> → dados completos da gestão (privado, LocalStorage).
     </div>
   `;
@@ -124,7 +124,7 @@ export function renderBackupPage(container) {
     }
 
     downloadJSON(menu, PUBLIC_MENU_FILE);
-    toast(`${PUBLIC_MENU_FILE} exportado! Commit no GitHub para publicar.`, 'success');
+    toast(`${PUBLIC_MENU_FILE} exportado localmente para o site público.`, 'success');
   });
 
   container.querySelector('#btnDownloadBackup').addEventListener('click', () => {

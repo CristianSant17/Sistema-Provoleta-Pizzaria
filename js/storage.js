@@ -16,6 +16,8 @@ export const KEYS = {
   META: `${PREFIX}meta`,
   SETTINGS: `${PREFIX}settings`,
   PUBLIC_MENU: `${PREFIX}public_menu`,
+  FAVORITES: `${PREFIX}favorites`,
+  LAST_ORDER: `${PREFIX}last_order`,
 };
 
 /** Gera chave mensal: provoleta_pedidos_2026_06 */
@@ -70,6 +72,7 @@ export function getConfig() {
     motoboys: [],
     channels: [],
     additionals: [],
+    coupons: [],
   });
 }
 
@@ -82,6 +85,7 @@ export function saveConfig(config) {
     motoboys: config.motoboys || [],
     channels: config.channels || [],
     additionals: config.additionals || [],
+    coupons: config.coupons || [],
     ...config,
   };
   save(KEYS.CONFIG, normalized);
@@ -147,11 +151,25 @@ export function saveOrders(year, month, orders) {
 // ── Caixa mensal ──
 
 export function getCashflow(year, month) {
-  return load(monthKey('caixa', year, month), { expenses: [] });
+  const defaultData = { expenses: [], entries: [] };
+  const data = load(monthKey('caixa', year, month), defaultData);
+  return {
+    ...defaultData,
+    ...data,
+    expenses: Array.isArray(data?.expenses) ? data.expenses : [],
+    entries: Array.isArray(data?.entries) ? data.entries : [],
+  };
 }
 
 export function saveCashflow(year, month, data) {
-  save(monthKey('caixa', year, month), data);
+  const normalized = {
+    expenses: [],
+    entries: [],
+    ...data,
+    expenses: Array.isArray(data?.expenses) ? data.expenses : [],
+    entries: Array.isArray(data?.entries) ? data.entries : [],
+  };
+  save(monthKey('caixa', year, month), normalized);
 }
 
 // ── Estoque (global) ──
@@ -174,6 +192,35 @@ export function getNextOrderNumber(year, month) {
   meta.orderCounters[key] = next;
   saveMeta(meta);
   return next;
+}
+
+// ── Favoritos de pizza ──
+
+export function getFavoriteFlavors() {
+  return load(KEYS.FAVORITES, []);
+}
+
+export function saveFavoriteFlavors(favorites) {
+  save(KEYS.FAVORITES, Array.isArray(favorites) ? favorites : []);
+}
+
+export function toggleFavoriteFlavor(flavorId) {
+  const favorites = getFavoriteFlavors();
+  const has = favorites.includes(flavorId);
+  const updated = has ? favorites.filter((id) => id !== flavorId) : [...favorites, flavorId];
+  saveFavoriteFlavors(updated);
+  return updated;
+}
+
+// ── Último pedido do cliente ──
+
+export function getLastOrder() {
+  return load(KEYS.LAST_ORDER, null);
+}
+
+export function saveLastOrder(order) {
+  if (!order || typeof order !== 'object') return;
+  save(KEYS.LAST_ORDER, order);
 }
 
 /** Próximo número sem incrementar (apenas exibição) */
@@ -246,6 +293,21 @@ export function getAllOrders() {
   return all;
 }
 
+/** Agrega entradas extras de caixa de todos os meses */
+export function getAllCashflowEntries() {
+  const all = [];
+  getAllProvoletaKeys().forEach((key) => {
+    if (key.includes('_caixa_')) {
+      const cf = load(key, { entries: [] });
+      const match = key.match(/caixa_(\d{4})_(\d{2})/);
+      if (match && Array.isArray(cf.entries)) {
+        cf.entries.forEach((entry) => all.push({ ...entry, _year: match[1], _month: match[2] }));
+      }
+    }
+  });
+  return all;
+}
+
 /** Agrega despesas de todos os meses */
 export function getAllExpenses() {
   const all = [];
@@ -253,7 +315,7 @@ export function getAllExpenses() {
     if (key.includes('_caixa_')) {
       const cf = load(key, { expenses: [] });
       const match = key.match(/caixa_(\d{4})_(\d{2})/);
-      if (match && cf.expenses) {
+      if (match && Array.isArray(cf.expenses)) {
         cf.expenses.forEach((e) => all.push({ ...e, _year: match[1], _month: match[2] }));
       }
     }

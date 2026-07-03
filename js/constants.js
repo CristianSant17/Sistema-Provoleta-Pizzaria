@@ -9,7 +9,7 @@ export const DEFAULT_WHATSAPP_NUMBER = '7799368373';
 /** WhatsApp padrão formatado para exibição */
 export const DEFAULT_WHATSAPP_FORMATTED = '+55 77 9936-8373';
 
-/** Arquivo JSON único da página pública (commitado no GitHub) */
+/** Arquivo JSON único da página pública exportado para uso no site */
 export const PUBLIC_MENU_FILE = 'cardapio_publico.json';
 
 /** Identificador do schema do cardápio público */

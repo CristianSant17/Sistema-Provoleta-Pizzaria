@@ -204,6 +204,10 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
+.chart-card--wide {
+  grid-column: 1 / -1;
+}
+
 .chart-card__title {
   font-family: var(--font-display);
   font-size: 1rem;
@@ -260,6 +264,111 @@
   font-family: var(--font-display);
   font-weight: 700;
   color: var(--blue-400);
+}
+
+.dashboard-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.dashboard-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: end;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.03);
+}
+
+.dashboard-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 140px;
+}
+
+.dashboard-filter-group .form-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.comparison-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border-color);
+}
+
+.comparison-card--positive {
+  background: rgba(34, 197, 94, 0.12);
+  color: #86efac;
+}
+
+.comparison-card--negative {
+  background: rgba(248, 113, 113, 0.12);
+  color: #fda4af;
+}
+
+.profit-badge {
+  display: inline-flex;
+  align-self: flex-start;
+  margin-top: 0.35rem;
+  padding: 0.32rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.profit-badge--positive {
+  background: rgba(34, 197, 94, 0.18);
+  color: #86efac;
+}
+
+.profit-badge--negative {
+  background: rgba(248, 113, 113, 0.18);
+  color: #fda4af;
+}
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.summary-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.summary-card--positive {
+  border-color: rgba(34, 197, 94, 0.25);
+}
+
+.summary-card--negative {
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.summary-card span {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.summary-card strong {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
 }
 
 /* ── Backup ── */

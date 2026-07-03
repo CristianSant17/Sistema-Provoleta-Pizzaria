@@ -1,7 +1,7 @@
 {
   "schema": "provoleta-public-menu",
   "version": "1.1.0",
-  "publishedAt": "2026-07-02T08:58:47.331Z",
+  "publishedAt": "2026-07-03T03:25:50.029Z",
   "store": {
     "name": "Pizzaria Provoleta",
     "whatsapp": "+55 77 9936-8373",
@@ -22,8 +22,7 @@
       "priceP": 38,
       "priceM": 48,
       "priceG": 58
-    }
-    ,
+    },
     {
       "id": "seed_cat_doces",
       "name": "Doces",
@@ -44,15 +43,6 @@
         "calabresa",
         "cebola"
       ]
-    }
-    ,
-    {
-      "id": "seed_frango_01",
-      "name": "Frango",
-      "categoryId": "1782982685193_jy1fc2m",
-      "imageUrl": "https://images.unsplash.com/photo-1604908177522-2d4bdc9b6b40?auto=format&fit=crop&w=800&q=80",
-      "extraImages": [],
-      "ingredients": ["mussarela","frango","cebola"]
     },
     {
       "id": "seed_frango_catupiry_01",
@@ -60,7 +50,11 @@
       "categoryId": "1782982685193_jy1fc2m",
       "imageUrl": "https://images.unsplash.com/photo-1546069901-eacef0df6022?auto=format&fit=crop&w=800&q=80",
       "extraImages": [],
-      "ingredients": ["mussarela","frango","catupiry"]
+      "ingredients": [
+        "mussarela",
+        "frango",
+        "catupiry"
+      ]
     },
     {
       "id": "seed_mussarela_01",
@@ -68,16 +62,21 @@
       "categoryId": "1782982685193_jy1fc2m",
       "imageUrl": "https://images.unsplash.com/photo-1542281286-9e0a16bb7366?auto=format&fit=crop&w=800&q=80",
       "extraImages": [],
-      "ingredients": ["mussarela"]
-    }
-    ,
+      "ingredients": [
+        "mussarela"
+      ]
+    },
     {
       "id": "seed_camarao_01",
       "name": "Camarão",
       "categoryId": "1782982685193_ziws1wu",
       "imageUrl": "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80",
       "extraImages": [],
-      "ingredients": ["mussarela","camarao","alho"]
+      "ingredients": [
+        "mussarela",
+        "camarao",
+        "alho"
+      ]
     },
     {
       "id": "seed_atum_01",
@@ -85,7 +84,11 @@
       "categoryId": "1782982685193_ziws1wu",
       "imageUrl": "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=800&q=80",
       "extraImages": [],
-      "ingredients": ["mussarela","atum","cebola"]
+      "ingredients": [
+        "mussarela",
+        "atum",
+        "cebola"
+      ]
     },
     {
       "id": "seed_banana_choco_01",
@@ -93,15 +96,11 @@
       "categoryId": "seed_cat_doces",
       "imageUrl": "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80",
       "extraImages": [],
-      "ingredients": ["banana","chocolate","leite condensado"]
-    },
-    {
-      "id": "seed_brigadeiro_01",
-      "name": "Brigadeiro",
-      "categoryId": "seed_cat_doces",
-      "imageUrl": "https://images.unsplash.com/photo-1542149113-4ac7a2e2e6a3?auto=format&fit=crop&w=800&q=80",
-      "extraImages": [],
-      "ingredients": ["brigadeiro","mussarela","granulado"]
+      "ingredients": [
+        "banana",
+        "chocolate",
+        "leite condensado"
+      ]
     }
   ],
   "drinks": [
@@ -111,8 +110,7 @@
       "priceLata": 6,
       "price1L": 10,
       "imageUrl": "https://images.unsplash.com/photo-1625772299848-391b6a87d7b3?auto=format&fit=crop&w=800&q=80"
-    }
-    ,
+    },
     {
       "id": "seed_pepsi_01",
       "name": "Pepsi",
@@ -149,5 +147,28 @@
       "name": "Bacon",
       "price": 6
     }
+  ],
+  "motoboys": [
+    {
+      "id": "seed_motoboy_01",
+      "name": "Cristian",
+      "active": true
+    }
+  ],
+  "channels": [
+    {
+      "id": "seed_channel_whatsapp",
+      "name": "WhatsApp"
+    },
+    {
+      "id": "seed_channel_ifood",
+      "name": "iFood"
+    }
+  ]
+  ,
+  "coupons": [
+    { "id": "seed_coupon_verao10", "code": "VERAO10", "active": true, "description": "10% de desconto em pedidos a partir de R$50", "type": "percent", "value": 10, "minOrderValue": 50, "productIds": [], "expiresAt": null, "freeShipping": false },
+    { "id": "seed_coupon_frete", "code": "FRETEGRATIS", "active": true, "description": "Frete grátis para pedidos acima de R$30", "type": null, "value": null, "minOrderValue": 30, "productIds": [], "expiresAt": null, "freeShipping": true },
+    { "id": "seed_coupon_doces5", "code": "DOCES5", "active": true, "description": "R$5 off em sobremesas selecionadas", "type": "fixed", "value": 5, "minOrderValue": 0, "productIds": ["seed_banana_choco_01","seed_brigadeiro_01"], "expiresAt": null, "freeShipping": false }
   ]
 }

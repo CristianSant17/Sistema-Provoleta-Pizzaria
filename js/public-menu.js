@@ -1,11 +1,21 @@
 /**
  * PROVOLETA — Cardápio público (JSON)
- * Fonte única da página pedido.html · gerado no admin e publicado via GitHub.
+ * Fonte única da página pedido.html · gerado no admin e exportado em JSON para o site público.
  */
 
 import { PUBLIC_MENU_SCHEMA, DEFAULT_WHATSAPP_FORMATTED } from './constants.js';
 
 function normalizeImageList(value) {
+  if (Array.isArray(value)) {
+    return value.map((entry) => String(entry || '').trim()).filter(Boolean);
+  }
+  if (typeof value === 'string') {
+    return value.split(',').map((entry) => entry.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function normalizeStringList(value) {
   if (Array.isArray(value)) {
     return value.map((entry) => String(entry || '').trim()).filter(Boolean);
   }
@@ -38,6 +48,20 @@ export function buildPublicMenu(config, storeSettings) {
     })),
     neighborhoods: (config.neighborhoods || []).map(({ id, name, fee }) => ({ id, name, fee })),
     additionals: (config.additionals || []).map(({ id, name, price }) => ({ id, name, price })),
+    motoboys: (config.motoboys || []).map(({ id, name, active }) => ({ id, name, active })),
+    channels: (config.channels || []).map(({ id, name }) => ({ id, name })),
+    coupons: (config.coupons || []).map(({ id, code, active, description, type, value, minOrderValue, productIds, expiresAt, freeShipping }) => ({
+      id,
+      code,
+      active: Boolean(active),
+      description,
+      type,
+      value,
+      minOrderValue,
+      productIds: normalizeStringList(productIds),
+      expiresAt,
+      freeShipping: Boolean(freeShipping),
+    })),
   };
 }
 
@@ -74,6 +98,9 @@ export function normalizePublicMenu(raw) {
       drinks: raw.drinks || [],
       neighborhoods: raw.neighborhoods || [],
       additionals: raw.additionals || [],
+      motoboys: raw.motoboys || [],
+      channels: raw.channels || [],
+      coupons: (raw.coupons || []).map((coupon) => ({ ...coupon, productIds: normalizeStringList(coupon?.productIds) })),
       publishedAt: raw.publishedAt,
     };
   }
@@ -92,6 +119,7 @@ export function normalizePublicMenu(raw) {
       neighborhoods: raw.neighborhoods || [],
       additionals: raw.additionals || [],
       publishedAt: raw.publishedAt,
+      coupons: (raw.coupons || []).map((coupon) => ({ ...coupon, productIds: normalizeStringList(coupon?.productIds) })),
     };
   }
 

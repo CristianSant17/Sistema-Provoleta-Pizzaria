@@ -163,8 +163,8 @@ function initPasswordToggle() {
   });
 }
 
-function init() {
-  seedIfNeeded();
+async function init() {
+  await seedIfNeeded();
 
   const meta = getMeta();
   const monthRef = meta.referenceMonth || currentMonthRef();

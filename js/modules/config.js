@@ -9,6 +9,7 @@ import { uid, escapeHtml, parseMoney } from '../utils.js';
 import { toast, confirmModal, initTabs, emptyState, tableActions, openFormModal } from '../ui.js';
 
 let activeTab = 'categorias';
+let _configGlobalListenersAttached = false;
 
 function parseExtraImages(value) {
   return String(value || '')
@@ -27,6 +28,12 @@ function parseIngredients(value) {
 export function renderConfigPage(container) {
   const config = getConfig();
   const publicMenu = getPublicMenuSnapshot();
+  // If no coupons in local config but public snapshot has them, surface them in the admin UI for visibility.
+  if ((!config.coupons || !config.coupons.length) && publicMenu?.coupons?.length) {
+    config.coupons = publicMenu.coupons.map((c) => ({ ...c }));
+    // Persist imported coupons so edit/delete operations work on the actual config
+    saveConfig(config);
+  }
   const hasPendingChanges = !publicMenu || JSON.stringify(publicMenu) !== JSON.stringify(buildPublicMenu(config, getSettings()));
 
   container.innerHTML = `
@@ -38,10 +45,10 @@ export function renderConfigPage(container) {
     <div class="card config-section config-publish-card">
       <div class="card__header">
         <h3 class="card__title">Cardápio Público</h3>
-        <span class="tag ${hasPendingChanges ? 'tag--pending' : 'tag--ok'}">${hasPendingChanges ? 'Alterações pendentes' : 'Atualizado'}</span>
+          <span class="tag ${hasPendingChanges ? 'tag--pending' : 'tag--ok'}">${hasPendingChanges ? 'Alterações pendentes' : 'Atualizado'}</span>
       </div>
-      <p class="form-hint">Cada alteração salva aqui atualiza o payload local do cardápio público para exportação e publicação.</p>
-      <button type="button" class="btn btn--primary" id="publishMenuBtn">Salvar e Atualizar Cardápio Público</button>
+        <p class="form-hint">Cada alteração salva aqui atualiza o payload local do cardápio público para exportação e uso no site.</p>
+        <button type="button" class="btn btn--primary" id="publishMenuBtn">Atualizar e exportar cardápio público</button>
     </div>
 
     <div class="tabs" id="configTabs">
@@ -50,6 +57,7 @@ export function renderConfigPage(container) {
       <button class="tab-btn ${activeTab === 'bebidas' ? 'active' : ''}" data-tab="bebidas">Bebidas</button>
       <button class="tab-btn ${activeTab === 'logistica' ? 'active' : ''}" data-tab="logistica">Logística</button>
       <button class="tab-btn ${activeTab === 'equipe' ? 'active' : ''}" data-tab="equipe">Equipe e Canais</button>
+      <button class="tab-btn ${activeTab === 'cupons' ? 'active' : ''}" data-tab="cupons">Cupons</button>
     </div>
 
     <div class="tab-panel ${activeTab === 'categorias' ? 'active' : ''}" data-panel="categorias">${renderCategoriesPanel(config)}</div>
@@ -57,11 +65,164 @@ export function renderConfigPage(container) {
     <div class="tab-panel ${activeTab === 'bebidas' ? 'active' : ''}" data-panel="bebidas">${renderDrinksPanel(config)}</div>
     <div class="tab-panel ${activeTab === 'logistica' ? 'active' : ''}" data-panel="logistica">${renderLogisticsPanel(config)}</div>
     <div class="tab-panel ${activeTab === 'equipe' ? 'active' : ''}" data-panel="equipe">${renderTeamPanel(config)}</div>
+    <div class="tab-panel ${activeTab === 'cupons' ? 'active' : ''}" data-panel="cupons">${renderCouponsPanel(config)}</div>
   `;
 
   initTabs(container);
   container.querySelectorAll('.tab-btn').forEach((btn) => {
     btn.addEventListener('click', () => { activeTab = btn.dataset.tab; });
+  });
+
+  // Attach direct listeners for coupon edit/delete buttons to ensure reliable behavior
+  (container.querySelectorAll('[data-edit-coupon]') || []).forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.getAttribute('data-edit-coupon');
+      const config = getConfig();
+      const item = (config.coupons || []).find((c) => c.id === id);
+      if (!item) { toast('Cupom não encontrado.', 'error'); return; }
+      openFormModal({
+        title: 'Editar Cupom',
+        formHtml: `
+          <div class="form-grid">
+            <div class="form-group form-group--full"><label class="form-label">Código</label>
+              <input class="form-input" name="code" value="${escapeHtml(item.code)}" required></div>
+            <div class="form-group form-group--full"><label class="form-label">Descrição</label>
+              <input class="form-input" name="description" value="${escapeHtml(item.description || '')}"></div>
+            <div class="form-group"><label class="form-label">Tipo</label>
+              <select class="form-select" name="type">
+                <option value="" ${item.type === '' ? 'selected' : ''}>Sem desconto</option>
+                <option value="percent" ${item.type === 'percent' ? 'selected' : ''}>Porcentagem</option>
+                <option value="fixed" ${item.type === 'fixed' ? 'selected' : ''}>Valor fixo</option>
+              </select></div>
+            <div class="form-group"><label class="form-label">Valor</label>
+              <input class="form-input" name="value" type="number" step="0.01" min="0" value="${item.value || ''}"></div>
+            <div class="form-group"><label class="form-label">Valor mínimo do pedido</label>
+              <input class="form-input" name="minOrderValue" type="number" step="0.01" min="0" value="${item.minOrderValue || ''}"></div>
+            <div class="form-group form-group--full"><label class="form-label">Produtos específicos</label>
+              <input class="form-input" name="productIds" value="${escapeHtml((item.productIds || []).join(', '))}" placeholder="IDs separados por vírgula"></div>
+            <div class="form-group"><label class="form-label">Validade</label>
+              <input class="form-input" name="expiresAt" type="date" value="${item.expiresAt ? item.expiresAt.split('T')[0] : ''}"></div>
+            <div class="form-group form-group--full">
+              <label class="form-label checkbox-label">
+                <input type="checkbox" name="active" value="1" ${item.active ? 'checked' : ''}> Cupom ativo
+              </label>
+            </div>
+            <div class="form-group form-group--full">
+              <label class="form-label checkbox-label">
+                <input type="checkbox" name="freeShipping" value="1" ${item.freeShipping ? 'checked' : ''}> Frete grátis
+              </label>
+            </div>
+          </div>`,
+        onSubmit: (_, fd) => {
+          item.code = fd.get('code').trim();
+          item.description = fd.get('description').trim();
+          item.type = fd.get('type');
+          item.value = parseMoney(fd.get('value'));
+          item.minOrderValue = parseMoney(fd.get('minOrderValue'));
+          item.productIds = parseIngredients(fd.get('productIds'));
+          item.expiresAt = fd.get('expiresAt') ? new Date(fd.get('expiresAt')).toISOString() : '';
+          item.active = !!fd.get('active');
+          item.freeShipping = !!fd.get('freeShipping');
+          saveConfig(config);
+          toast('Cupom atualizado!', 'success');
+          renderConfigPage(container);
+        },
+      });
+    });
+
+  // Add a single document-level fallback listener once to catch clicks that miss local handlers
+  if (!_configGlobalListenersAttached) {
+    _configGlobalListenersAttached = true;
+    document.addEventListener('click', async (e) => {
+      const editEl = e.target.closest && e.target.closest('[data-edit-coupon]');
+      if (editEl) {
+        e.stopPropagation();
+        const id = editEl.getAttribute('data-edit-coupon');
+        const config = getConfig();
+        const item = (config.coupons || []).find((c) => c.id === id);
+        if (!item) { toast('Cupom não encontrado.', 'error'); return; }
+        openFormModal({
+          title: 'Editar Cupom',
+          formHtml: `
+            <div class="form-grid">
+              <div class="form-group form-group--full"><label class="form-label">Código</label>
+                <input class="form-input" name="code" value="${escapeHtml(item.code)}" required></div>
+              <div class="form-group form-group--full"><label class="form-label">Descrição</label>
+                <input class="form-input" name="description" value="${escapeHtml(item.description || '')}"></div>
+              <div class="form-group"><label class="form-label">Tipo</label>
+                <select class="form-select" name="type">
+                  <option value="" ${item.type === '' ? 'selected' : ''}>Sem desconto</option>
+                  <option value="percent" ${item.type === 'percent' ? 'selected' : ''}>Porcentagem</option>
+                  <option value="fixed" ${item.type === 'fixed' ? 'selected' : ''}>Valor fixo</option>
+                </select></div>
+              <div class="form-group"><label class="form-label">Valor</label>
+                <input class="form-input" name="value" type="number" step="0.01" min="0" value="${item.value || ''}"></div>
+              <div class="form-group"><label class="form-label">Valor mínimo do pedido</label>
+                <input class="form-input" name="minOrderValue" type="number" step="0.01" min="0" value="${item.minOrderValue || ''}"></div>
+              <div class="form-group form-group--full"><label class="form-label">Produtos específicos</label>
+                <input class="form-input" name="productIds" value="${escapeHtml((item.productIds || []).join(', '))}" placeholder="IDs separados por vírgula"></div>
+              <div class="form-group"><label class="form-label">Validade</label>
+                <input class="form-input" name="expiresAt" type="date" value="${item.expiresAt ? item.expiresAt.split('T')[0] : ''}"></div>
+              <div class="form-group form-group--full">
+                <label class="form-label checkbox-label">
+                  <input type="checkbox" name="active" value="1" ${item.active ? 'checked' : ''}> Cupom ativo
+                </label>
+              </div>
+              <div class="form-group form-group--full">
+                <label class="form-label checkbox-label">
+                  <input type="checkbox" name="freeShipping" value="1" ${item.freeShipping ? 'checked' : ''}> Frete grátis
+                </label>
+              </div>
+            </div>`,
+          onSubmit: (_, fd) => {
+            item.code = fd.get('code').trim();
+            item.description = fd.get('description').trim();
+            item.type = fd.get('type');
+            item.value = parseMoney(fd.get('value'));
+            item.minOrderValue = parseMoney(fd.get('minOrderValue'));
+            item.productIds = parseIngredients(fd.get('productIds'));
+            item.expiresAt = fd.get('expiresAt') ? new Date(fd.get('expiresAt')).toISOString() : '';
+            item.active = !!fd.get('active');
+            item.freeShipping = !!fd.get('freeShipping');
+            saveConfig(config);
+            toast('Cupom atualizado!', 'success');
+            renderConfigPage(document.querySelector('.page.active') || document.getElementById('mainContent'));
+          },
+        });
+        return;
+      }
+      const deleteEl = e.target.closest && e.target.closest('[data-delete-coupon]');
+      if (deleteEl) {
+        e.stopPropagation();
+        const id = deleteEl.getAttribute('data-delete-coupon');
+        const config = getConfig();
+        if (!id) return;
+        if (await confirmModal({ title: 'Excluir Cupom', message: 'Confirma a exclusão?', danger: true })) {
+          config.coupons = (config.coupons || []).filter((coupon) => coupon.id !== id);
+          saveConfig(config);
+          toast('Cupom excluído.', 'info');
+          renderConfigPage(document.querySelector('.page.active') || document.getElementById('mainContent'));
+        }
+        return;
+      }
+    });
+  }
+  });
+
+  (container.querySelectorAll('[data-delete-coupon]') || []).forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = btn.getAttribute('data-delete-coupon');
+      const config = getConfig();
+      if (!id) return;
+      if (await confirmModal({ title: 'Excluir Cupom', message: 'Confirma a exclusão?', danger: true })) {
+        config.coupons = (config.coupons || []).filter((coupon) => coupon.id !== id);
+        saveConfig(config);
+        toast('Cupom excluído.', 'info');
+        renderConfigPage(container);
+      }
+    });
   });
   bindConfigEvents(container);
 }
@@ -260,6 +421,66 @@ function renderTeamPanel(config) {
     </div>`;
 }
 
+function renderCouponsPanel(config) {
+  const rows = (config.coupons || []).map((coupon) => {
+    const details = [];
+    if (coupon.type === 'percent' && coupon.value) details.push(`${coupon.value}%`);
+    if (coupon.type === 'fixed' && coupon.value) details.push(`R$ ${parseMoney(coupon.value).toFixed(2)}`);
+    if (coupon.freeShipping) details.push('Frete grátis');
+    if (coupon.minOrderValue) details.push(`A partir de R$ ${parseMoney(coupon.minOrderValue).toFixed(2)}`);
+    if (coupon.productIds?.length) details.push('Produtos específicos');
+    return `
+      <tr>
+        <td><strong>${escapeHtml(coupon.code)}</strong></td>
+        <td>${coupon.active ? '<span class="tag tag--ok">Ativo</span>' : '<span class="tag tag--pending">Inativo</span>'}</td>
+        <td>${escapeHtml(coupon.description || details.join(' · ') || '—')}</td>
+        <td>${details.join(' · ')}</td>
+        <td>${tableActions(`data-edit-coupon="${coupon.id}"`, `data-delete-coupon="${coupon.id}"`)}</td>
+      </tr>`;
+  }).join('');
+
+  return `
+    <div class="card config-section">
+      <div class="card__header"><h3 class="card__title">Cupons</h3></div>
+      <form id="formCoupon" class="inline-form">
+        <div class="form-group"><label class="form-label">Código do cupom</label>
+          <input class="form-input" name="code" required placeholder="Ex: PROVOLETA10"></div>
+        <div class="form-group"><label class="form-label">Descrição</label>
+          <input class="form-input" name="description" placeholder="Ex: 10% de desconto no pedido"></div>
+        <div class="form-group"><label class="form-label">Tipo</label>
+          <select class="form-select" name="type">
+            <option value="">Sem desconto</option>
+            <option value="percent">Porcentagem</option>
+            <option value="fixed">Valor fixo</option>
+          </select></div>
+        <div class="form-group"><label class="form-label">Valor</label>
+          <input class="form-input" name="value" type="number" step="0.01" min="0" placeholder="10"></div>
+        <div class="form-group"><label class="form-label">Valor mínimo do pedido</label>
+          <input class="form-input" name="minOrderValue" type="number" step="0.01" min="0" placeholder="0"></div>
+        <div class="form-group"><label class="form-label">Produtos específicos</label>
+          <input class="form-input" name="productIds" placeholder="IDs separados por vírgula"></div>
+        <div class="form-group"><label class="form-label">Validade</label>
+          <input class="form-input" name="expiresAt" type="date"></div>
+        <div class="form-group form-group--full">
+          <label class="form-label checkbox-label">
+            <input type="checkbox" name="active" value="1" checked> Cupom ativo
+          </label>
+        </div>
+        <div class="form-group form-group--full">
+          <label class="form-label checkbox-label">
+            <input type="checkbox" name="freeShipping" value="1"> Frete grátis
+          </label>
+        </div>
+        <button type="submit" class="btn btn--primary">+ Adicionar</button>
+      </form>
+      ${rows.length ? `
+        <div class="table-wrapper"><table class="data-table">
+          <thead><tr><th>Cupom</th><th>Status</th><th>Descrição</th><th>Regras</th><th>Ações</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>` : emptyState('🏷️', 'Nenhum cupom cadastrado')}
+    </div>`;
+}
+
 function bindConfigEvents(container) {
   container.querySelector('#publishMenuBtn')?.addEventListener('click', () => {
     const config = getConfig();
@@ -364,8 +585,31 @@ function bindConfigEvents(container) {
     renderConfigPage(container);
   });
 
+  container.querySelector('#formCoupon')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const config = getConfig();
+    config.coupons = config.coupons || [];
+    config.coupons.push({
+      id: uid(),
+      code: fd.get('code').trim(),
+      description: fd.get('description').trim(),
+      type: fd.get('type'),
+      value: parseMoney(fd.get('value')),
+      minOrderValue: parseMoney(fd.get('minOrderValue')),
+      productIds: parseIngredients(fd.get('productIds')),
+      expiresAt: fd.get('expiresAt') ? new Date(fd.get('expiresAt')).toISOString() : '',
+      active: !!fd.get('active'),
+      freeShipping: !!fd.get('freeShipping'),
+    });
+    saveConfig(config);
+    toast('Cupom adicionado!', 'success');
+    renderConfigPage(container);
+  });
+
   container.addEventListener('click', async (e) => {
-    const btn = e.target.closest('button');
+    // Busca diretamente por elementos que tenham atributos de ação para ser mais robusto
+    const btn = e.target.closest('[data-edit-cat],[data-edit-flavor],[data-edit-drink],[data-edit-neighborhood],[data-edit-motoboy],[data-edit-channel],[data-edit-additional],[data-edit-coupon],[data-delete-cat],[data-delete-flavor],[data-delete-drink],[data-delete-neighborhood],[data-delete-motoboy],[data-delete-channel],[data-delete-additional],[data-delete-coupon]');
     if (!btn) return;
 
     const config = getConfig();
@@ -545,6 +789,60 @@ function bindConfigEvents(container) {
       return;
     }
 
+    const editCouponIdAttr = btn.dataset.editCoupon || btn.getAttribute && btn.getAttribute('data-edit-coupon');
+    if (editCouponIdAttr) {
+      const item = (config.coupons || []).find((coupon) => coupon.id === editCouponIdAttr);
+      openFormModal({
+        title: 'Editar Cupom',
+        formHtml: `
+          <div class="form-grid">
+            <div class="form-group form-group--full"><label class="form-label">Código</label>
+              <input class="form-input" name="code" value="${escapeHtml(item.code)}" required></div>
+            <div class="form-group form-group--full"><label class="form-label">Descrição</label>
+              <input class="form-input" name="description" value="${escapeHtml(item.description || '')}"></div>
+            <div class="form-group"><label class="form-label">Tipo</label>
+              <select class="form-select" name="type">
+                <option value="" ${item.type === '' ? 'selected' : ''}>Sem desconto</option>
+                <option value="percent" ${item.type === 'percent' ? 'selected' : ''}>Porcentagem</option>
+                <option value="fixed" ${item.type === 'fixed' ? 'selected' : ''}>Valor fixo</option>
+              </select></div>
+            <div class="form-group"><label class="form-label">Valor</label>
+              <input class="form-input" name="value" type="number" step="0.01" min="0" value="${item.value || ''}"></div>
+            <div class="form-group"><label class="form-label">Valor mínimo do pedido</label>
+              <input class="form-input" name="minOrderValue" type="number" step="0.01" min="0" value="${item.minOrderValue || ''}"></div>
+            <div class="form-group form-group--full"><label class="form-label">Produtos específicos</label>
+              <input class="form-input" name="productIds" value="${escapeHtml((item.productIds || []).join(', '))}" placeholder="IDs separados por vírgula"></div>
+            <div class="form-group"><label class="form-label">Validade</label>
+              <input class="form-input" name="expiresAt" type="date" value="${item.expiresAt ? item.expiresAt.split('T')[0] : ''}"></div>
+            <div class="form-group form-group--full">
+              <label class="form-label checkbox-label">
+                <input type="checkbox" name="active" value="1" ${item.active ? 'checked' : ''}> Cupom ativo
+              </label>
+            </div>
+            <div class="form-group form-group--full">
+              <label class="form-label checkbox-label">
+                <input type="checkbox" name="freeShipping" value="1" ${item.freeShipping ? 'checked' : ''}> Frete grátis
+              </label>
+            </div>
+          </div>`,
+        onSubmit: (_, fd) => {
+          item.code = fd.get('code').trim();
+          item.description = fd.get('description').trim();
+          item.type = fd.get('type');
+          item.value = parseMoney(fd.get('value'));
+          item.minOrderValue = parseMoney(fd.get('minOrderValue'));
+          item.productIds = parseIngredients(fd.get('productIds'));
+          item.expiresAt = fd.get('expiresAt') ? new Date(fd.get('expiresAt')).toISOString() : '';
+          item.active = !!fd.get('active');
+          item.freeShipping = !!fd.get('freeShipping');
+          saveConfig(config);
+          toast('Cupom atualizado!', 'success');
+          renderConfigPage(container);
+        },
+      });
+      return;
+    }
+
     // ── Excluir ──
     if (btn.dataset.deleteCat && await confirmModal({ title: 'Excluir Categoria', message: 'Sabores vinculados perderão a referência. Continuar?', danger: true })) {
       config.categories = config.categories.filter((c) => c.id !== btn.dataset.deleteCat);
@@ -574,6 +872,11 @@ function bindConfigEvents(container) {
       config.additionals = (config.additionals || []).filter((a) => a.id !== btn.dataset.deleteAdditional);
       changed = true;
     }
+    const deleteCouponIdAttr = btn.dataset.deleteCoupon || btn.getAttribute && btn.getAttribute('data-delete-coupon');
+    if (deleteCouponIdAttr && await confirmModal({ title: 'Excluir Cupom', message: 'Confirma a exclusão?', danger: true })) {
+      config.coupons = (config.coupons || []).filter((coupon) => coupon.id !== deleteCouponIdAttr);
+      changed = true;
+    }
 
     if (changed) {
       saveConfig(config);
@@ -582,3 +885,4 @@ function bindConfigEvents(container) {
     }
   });
 }
+
