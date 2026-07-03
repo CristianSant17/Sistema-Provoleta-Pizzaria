@@ -1502,7 +1502,7 @@
   position: fixed;
   bottom: calc(6.75rem + env(safe-area-inset-bottom, 0));
   right: 1rem;
-  z-index: 100;
+  z-index: 50;
   display: inline-flex;
   align-items: center;
   gap: 0.7rem;
@@ -1516,6 +1516,16 @@
   box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
   backdrop-filter: blur(18px);
   cursor: pointer;
+  animation: pz-support-btn-bounce 1.8s ease-in-out infinite;
+}
+
+@keyframes pz-support-btn-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
 }
 
 .pz-support-btn:hover {
@@ -1663,6 +1673,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-bottom: 60px;
+
 }
 
 .pz-floating-cart__button {

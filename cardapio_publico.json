@@ -167,8 +167,8 @@
   ]
   ,
   "coupons": [
-    { "id": "seed_coupon_verao10", "code": "VERAO10", "active": true, "description": "10% de desconto em pedidos a partir de R$50", "type": "percent", "value": 10, "minOrderValue": 50, "productIds": [], "expiresAt": null, "freeShipping": false },
-    { "id": "seed_coupon_frete", "code": "FRETEGRATIS", "active": true, "description": "Frete grátis para pedidos acima de R$30", "type": null, "value": null, "minOrderValue": 30, "productIds": [], "expiresAt": null, "freeShipping": true },
-    { "id": "seed_coupon_doces5", "code": "DOCES5", "active": true, "description": "R$5 off em sobremesas selecionadas", "type": "fixed", "value": 5, "minOrderValue": 0, "productIds": ["seed_banana_choco_01","seed_brigadeiro_01"], "expiresAt": null, "freeShipping": false }
+    { "id": "seed_coupon_verao10", "code": "VERAO10", "active": false, "description": "10% de desconto em pedidos a partir de R$50", "type": "percent", "value": 10, "minOrderValue": 50, "productIds": [], "expiresAt": null, "freeShipping": false },
+    { "id": "seed_coupon_frete", "code": "FRETEGRATIS", "active": false, "description": "Frete grátis para pedidos acima de R$30", "type": null, "value": null, "minOrderValue": 30, "productIds": [], "expiresAt": null, "freeShipping": true },
+    { "id": "seed_coupon_doces5", "code": "DOCES5", "active": false, "description": "R$5 off em sobremesas selecionadas", "type": "fixed", "value": 5, "minOrderValue": 0, "productIds": ["seed_banana_choco_01","seed_brigadeiro_01"], "expiresAt": null, "freeShipping": false }
   ]
 }
