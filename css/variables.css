@@ -45,13 +45,27 @@
   /* Layout */
   --sidebar-width: 268px;
   --topbar-height: 60px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
+  --radius-pill: 999px;
+
+  /* Layering */
+  --z-dropdown: 100;
+  --z-fixed: 500;
+  --z-modal-overlay: 1000;
+  --z-modal: 1010;
+  --z-toast: 2000;
+
+  /* Surfaces */
+  --surface-muted: rgba(255, 255, 255, 0.04);
+  --surface-strong: rgba(255, 255, 255, 0.08);
+  --text-inverse: #ffffff;
 
   /* Shadows */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.18);
   --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
   --shadow-glow-blue: 0 0 0 1px rgba(37, 99, 235, 0.3), 0 4px 24px rgba(37, 99, 235, 0.15);

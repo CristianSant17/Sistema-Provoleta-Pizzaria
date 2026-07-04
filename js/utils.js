@@ -89,7 +89,7 @@ export function paymentLabel(method) {
 
 /** Label de status */
 export function statusLabel(status) {
-  const map = { pendente: 'Pendente', entregue: 'Entregue', cancelado: 'Cancelado' };
+  const map = { pendente: 'Pendente', em_preparo: 'Em preparo', entregue: 'Entregue', cancelado: 'Cancelado' };
   return map[status] || status;
 }
 
@@ -97,6 +97,219 @@ export function statusLabel(status) {
 export function sizeLabel(size) {
   const map = { P: 'Pequena (P)', M: 'Média (M)', G: 'Grande (G)', Lata: 'Lata', '1L': '1 Litro' };
   return map[size] || size;
+}
+
+/** Regras por tamanho para pizzas com frações */
+export function getPizzaSizeRules(size) {
+  switch (size) {
+    case 'P':
+      return { maxFlavors: 2, allowedFractions: [1, 0.5], sizeLabel: 'Pequena', sizeShort: 'P' };
+    case 'M':
+      return { maxFlavors: 3, allowedFractions: [1, 0.5, 1 / 3], sizeLabel: 'Média', sizeShort: 'M' };
+    case 'G':
+    default:
+      return { maxFlavors: 4, allowedFractions: [1, 0.5, 1 / 3, 0.25], sizeLabel: 'Grande', sizeShort: 'G' };
+  }
+}
+
+/** Label da fração para exibição */
+export function getPizzaFractionLabel(value) {
+  const normalized = Number(value);
+  if (Math.abs(normalized - 1) < 1e-9) return '1/1';
+  if (Math.abs(normalized - 0.5) < 1e-9) return '1/2';
+  if (Math.abs(normalized - 1 / 3) < 1e-9) return '1/3';
+  if (Math.abs(normalized - 0.25) < 1e-9) return '1/4';
+  return `${normalized.toFixed(2).replace(/\.0+$|0+$/, '')}`;
+}
+
+/** Texto simples da porção para o cliente */
+export function getPizzaPortionLabel(value) {
+  const normalized = Number(value);
+  if (Math.abs(normalized - 1) < 1e-9) return 'Toda a pizza';
+  if (Math.abs(normalized - 0.5) < 1e-9) return 'Metade da pizza';
+  if (Math.abs(normalized - 1 / 3) < 1e-9) return 'Terço da pizza';
+  if (Math.abs(normalized - 0.25) < 1e-9) return 'Quarto da pizza';
+  return getPizzaFractionLabel(value);
+}
+
+/** Texto da opção de montagem para o cliente */
+export function getPizzaPortionOptionLabel(value) {
+  const normalized = Number(value);
+  if (Math.abs(normalized - 1) < 1e-9) return '1 sabor';
+  if (Math.abs(normalized - 0.5) < 1e-9) return '2 sabores';
+  if (Math.abs(normalized - 1 / 3) < 1e-9) return '3 sabores';
+  if (Math.abs(normalized - 0.25) < 1e-9) return '4 sabores';
+  return getPizzaFractionLabel(value);
+}
+
+/** Texto de apoio da opção de montagem */
+export function getPizzaPortionHint(value) {
+  const normalized = Number(value);
+  if (Math.abs(normalized - 1) < 1e-9) return 'Pizza inteira';
+  if (Math.abs(normalized - 0.5) < 1e-9) return 'Metade para cada';
+  if (Math.abs(normalized - 1 / 3) < 1e-9) return 'Terço para cada';
+  if (Math.abs(normalized - 0.25) < 1e-9) return 'Quarto para cada';
+  return getPizzaFractionLabel(value);
+}
+
+/** Opções de fração visuais para o montador */
+export function getPizzaFractionOptions(size) {
+  switch (size) {
+    case 'P':
+      return [
+        { value: 1, label: getPizzaPortionOptionLabel(1), helper: getPizzaPortionHint(1) },
+        { value: 0.5, label: getPizzaPortionOptionLabel(0.5), helper: getPizzaPortionHint(0.5) },
+      ];
+    case 'M':
+      return [
+        { value: 1, label: getPizzaPortionOptionLabel(1), helper: getPizzaPortionHint(1) },
+        { value: 0.5, label: getPizzaPortionOptionLabel(0.5), helper: getPizzaPortionHint(0.5) },
+        { value: 1 / 3, label: getPizzaPortionOptionLabel(1 / 3), helper: getPizzaPortionHint(1 / 3) },
+      ];
+    case 'G':
+    default:
+      return [
+        { value: 1, label: getPizzaPortionOptionLabel(1), helper: getPizzaPortionHint(1) },
+        { value: 0.5, label: getPizzaPortionOptionLabel(0.5), helper: getPizzaPortionHint(0.5) },
+        { value: 1 / 3, label: getPizzaPortionOptionLabel(1 / 3), helper: getPizzaPortionHint(1 / 3) },
+        { value: 0.25, label: getPizzaPortionOptionLabel(0.25), helper: getPizzaPortionHint(0.25) },
+      ];
+  }
+}
+
+/** Estado resumido do montador de pizza para UI e validação */
+export function getPizzaBuilderState(size, rows = []) {
+  if (!size) {
+    return {
+      rules: getPizzaSizeRules(size),
+      entries: [],
+      totalFraction: 0,
+      remainingFraction: 1,
+      remainingLabel: getPizzaPortionLabel(1),
+      missingFlavorCount: 0,
+      canAddFlavor: false,
+      isComplete: false,
+      isValid: false,
+    };
+  }
+  const rules = getPizzaSizeRules(size);
+  const entries = (rows || []).slice(0, rules.maxFlavors).map((entry) => ({
+    id: entry.id || '',
+    name: entry.name || entry.label || '',
+  }));
+  const fraction = entries.length ? 1 / entries.length : 0;
+  const totalFraction = entries.reduce((sum) => sum + fraction, 0);
+  const remainingFraction = Math.max(0, 1 - totalFraction);
+  const missingFlavorCount = entries.filter((entry) => !entry.id).length;
+  return {
+    rules,
+    entries: entries.map((entry) => ({
+      ...entry,
+      fraction,
+      fractionLabel: getPizzaFractionLabel(fraction),
+    })),
+    totalFraction,
+    remainingFraction,
+    remainingLabel: getPizzaPortionLabel(remainingFraction),
+    missingFlavorCount,
+    canAddFlavor: entries.length < rules.maxFlavors,
+    isComplete: Math.abs(totalFraction - 1) < 1e-9 && missingFlavorCount === 0,
+    isValid: Math.abs(totalFraction - 1) < 1e-9 && missingFlavorCount === 0,
+  };
+}
+
+/** Normaliza uma lista de sabores para o tamanho atual */
+export function normalizePizzaFlavorEntries(size, flavors = []) {
+  if (!size) {
+    return [];
+  }
+  const rules = getPizzaSizeRules(size);
+  const entries = (flavors || []).slice(0, rules.maxFlavors).map((entry) => ({
+    id: entry?.id || '',
+    name: entry?.name || entry?.label || '',
+  }));
+  const fraction = entries.length ? 1 / entries.length : 0;
+  return entries.map((entry) => ({
+    id: entry.id,
+    name: entry.name,
+    fraction,
+    fractionLabel: getPizzaFractionLabel(fraction),
+  }));
+}
+
+/** Valida o estado atual de montagem da pizza */
+export function getPizzaSelectionStatus(size, flavors = []) {
+  const rules = getPizzaSizeRules(size);
+  const normalized = normalizePizzaFlavorEntries(size, flavors || []);
+  const total = normalized.reduce((sum, entry) => sum + (entry.fraction || 0), 0);
+  const missingFlavorCount = normalized.filter((entry) => !entry.id).length;
+
+  if (!size) {
+    return { valid: false, message: 'Selecione um tamanho para montar a pizza.', totalFraction: 0, normalized, maxFlavors: rules.maxFlavors };
+  }
+
+  if (!normalized.length) {
+    return { valid: false, message: 'Adicione pelo menos 1 sabor.', totalFraction: 0, normalized, maxFlavors: rules.maxFlavors };
+  }
+
+  if (missingFlavorCount > 0) {
+    return { valid: false, message: 'Preencha todos os sabores antes de finalizar.', totalFraction: total, normalized, maxFlavors: rules.maxFlavors };
+  }
+
+  if (Math.abs(total - 1) > 1e-9) {
+    return { valid: false, message: `Sua pizza está ${Math.round(total * 100)}% montada, adicione mais ${getPizzaPortionLabel(1 - total)}.`, totalFraction: total, normalized, maxFlavors: rules.maxFlavors };
+  }
+
+  return { valid: true, message: 'Pizza pronta para adicionar.', totalFraction: total, normalized, maxFlavors: rules.maxFlavors };
+}
+
+/** Calcula o preço da pizza considerando frações e adicionais */
+export function calculatePizzaPrice({ size, flavors = [], additionals = [], flavorCatalog = [], categoryCatalog = [] }) {
+  const totalFlavorBase = (flavors || []).reduce((sum, entry) => {
+    const flavor = (flavorCatalog || []).find((item) => item.id === entry.id);
+    const category = (categoryCatalog || []).find((item) => item.id === flavor?.categoryId);
+    if (!category) return sum;
+    const priceBySize = size === 'P' ? category.priceP : size === 'M' ? category.priceM : category.priceG;
+    return sum + (priceBySize * (Number(entry.fraction) || 0));
+  }, 0);
+
+  const additionalPrice = (additionals || []).reduce((sum, extra) => sum + (Number(extra.price) || 0), 0);
+  return Number((totalFlavorBase + additionalPrice).toFixed(2));
+}
+
+export function calculateOrderItemPrice({ type, size, flavors = [], itemId, additionals = [], flavorCatalog = [], categoryCatalog = [], drinksCatalog = [] }) {
+  if (type === 'pizza') {
+    return calculatePizzaPrice({ size, flavors, additionals, flavorCatalog, categoryCatalog });
+  }
+  if (type === 'bebida') {
+    const drink = (drinksCatalog || []).find((d) => d.id === itemId);
+    if (!drink) return 0;
+    return Number((size === 'Lata' ? drink.priceLata : drink.price1L).toFixed(2));
+  }
+  return 0;
+}
+
+export function buildOrderItemName({ type, size, flavors = [], itemName }) {
+  if (type === 'pizza') {
+    return buildPizzaDisplayName({ size, flavors });
+  }
+  return `${itemName || 'Bebida'} ${size}`;
+}
+
+export function calculateOrderTotal({ items = [], deliveryFee = 0, discount = 0 }) {
+  const subtotal = (items || []).reduce((sum, item) => sum + ((Number(item.unitPrice) || 0) * (Number(item.quantity) || 0)), 0);
+  return Number(Math.max(0, subtotal + Number(deliveryFee || 0) - Number(discount || 0)).toFixed(2));
+}
+
+/** Gera o nome textual do item pizza para painel e WhatsApp */
+export function buildPizzaDisplayName({ size, flavors = [] }) {
+  if (!size) return 'Pizza';
+  const parts = (flavors || []).map((entry) => {
+    const portionLabel = getPizzaPortionLabel(entry.fraction || 0);
+    const name = entry.name || entry.label || '';
+    return name ? `${portionLabel} ${name}` : portionLabel;
+  }).filter(Boolean);
+  return parts.length ? `Pizza ${size} (${parts.join(', ')})` : `Pizza ${size}`;
 }
 
 /** Verifica se duas datas ISO são no mesmo dia */

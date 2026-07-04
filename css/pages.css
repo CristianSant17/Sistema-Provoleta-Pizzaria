@@ -6,7 +6,7 @@
 .pedidos-layout {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
 @media (min-width: 1100px) {
@@ -19,6 +19,162 @@
 .pedido-form-card {
   position: sticky;
   top: calc(var(--topbar-height) + 1rem);
+  align-self: start;
+}
+
+@media (max-width: 1099px) {
+  .pedido-form-card {
+    position: static;
+  }
+}
+
+.pedido-current-orders-card {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 1100px) {
+  .pedido-current-orders-card {
+    grid-column: 2;
+  }
+}
+
+.pedido-current-orders-card .card__content {
+  padding: 1rem;
+}
+
+.kanban-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.kanban-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 320px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.kanban-column--over {
+  border-color: var(--blue-500);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.kanban-column__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.kanban-column__header h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.kanban-column__meta {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.kanban-column__body {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  min-height: 120px;
+  max-height: 640px;
+  overflow-y: auto;
+}
+
+.kanban-column__empty {
+  color: var(--text-secondary);
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+
+.kanban-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  cursor: grab;
+}
+
+.kanban-card:active {
+  cursor: grabbing;
+}
+
+.kanban-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.kanban-card__body {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--text-secondary);
+}
+
+.kanban-card__text {
+  font-size: 0.95rem;
+}
+
+.kanban-card__actions {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.current-orders-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.current-orders-item {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.current-orders-item__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.current-orders-item__body {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--text-secondary);
+}
+
+.current-orders-item__line {
+  font-size: 0.95rem;
+}
+
+.current-orders-item .table-actions {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
 }
 
 .pedido-total-display {
@@ -458,9 +614,81 @@
   color: var(--blue-400);
 }
 
+.pizza-builder-panel {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.pizza-builder-hint {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+.pizza-builder-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(130px, 160px) auto;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.pizza-builder-row .form-group {
+  margin-bottom: 0;
+}
+
+.pizza-builder-row button {
+  width: 100%;
+}
+
+.pizza-builder-status,
+.order-item-summary {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  color: var(--text-secondary);
+}
+
+.order-item-summary {
+  min-height: 52px;
+}
+
+.pedido-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.75rem;
+}
+
+.metric-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  text-align: center;
+}
+
+.metric-card strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  margin-top: 0.35rem;
+}
+
+@media (max-width: 720px) {
+  .pizza-builder-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── Section divider ── */
 .section-divider {
   height: 1px;
+  background: var(--border);
+  margin: 1rem 0;
+}
   background: var(--border);
   margin: 1.5rem 0;
 }

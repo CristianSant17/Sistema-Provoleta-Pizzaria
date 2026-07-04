@@ -3,10 +3,12 @@
  * Layout inspirado em apps de delivery (cardápio + sacola lateral).
  */
 
-import { formatMoney, escapeHtml, normalizeWhatsApp, whatsappUrl } from './utils.js';
+import { formatMoney, escapeHtml, normalizeWhatsApp, whatsappUrl, getPizzaSizeRules, getPizzaFractionLabel, getPizzaSelectionStatus, calculatePizzaPrice, buildPizzaDisplayName, getPizzaFractionOptions, getPizzaBuilderState, getPizzaPortionLabel } from './utils.js';
 import { normalizePublicMenu } from './public-menu.js';
 import { PUBLIC_MENU_FILE, DEFAULT_WHATSAPP_NUMBER } from './constants.js';
 import { getFavoriteFlavors, saveFavoriteFlavors, toggleFavoriteFlavor, getLastOrder, saveLastOrder } from './storage.js';
+
+const CART_STORAGE_KEY = 'provoleta_public_cart';
 
 let menu = null;
 let cart = [];
@@ -16,6 +18,7 @@ let menuTab = 'pizza';
 let selectedFlavorId = null;
 let selectedDrinkId = null;
 let selectedSize = null;
+let pizzaBuilderFlavors = [];
 let customizationModal = null;
 let customizationState = null;
 let sidebarCollapsed = false;
@@ -32,6 +35,31 @@ async function loadMenu() {
     return normalizePublicMenu(await res.json());
   } catch {
     return null;
+  }
+}
+
+function loadCartState() {
+  try {
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveCartState() {
+  try {
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify({
+      cart,
+      deliveryFee,
+      orderMode,
+      appliedCoupon,
+      couponMessage,
+    }));
+  } catch {
+    // Ignora falhas de armazenamento do navegador.
   }
 }
 
@@ -397,6 +425,8 @@ function renderCart() {
     </div>
     ${couponMessage ? `<div class="pz-coupon-message">${escapeHtml(couponMessage)}</div>` : ''}`;
 
+  saveCartState();
+
   if (drawerList) {
     drawerList.innerHTML = cart.map((item, idx) => {
       const additions = (item.additionals || []).map((a) => a.name).join(', ');
@@ -500,20 +530,26 @@ function validateOrderForm() {
   return true;
 }
 
-function addItemToCart({ type, item, size, quantity, basePrice, selectedAdditionals = [] }) {
+function addItemToCart({ type, item, size, quantity, basePrice, selectedAdditionals = [], flavors = [] }) {
   const unitPrice = basePrice + selectedAdditionals.reduce((sum, extra) => sum + (extra.price || 0), 0);
+  const displayName = type === 'pizza'
+    ? buildPizzaDisplayName({ size, flavors: flavors.length ? flavors : [{ id: item.id, name: item.name, fraction: 1, fractionLabel: '1/1' }] })
+    : item.name;
   cart.push({
     itemId: item.id,
     type,
-    name: item.name,
+    name: displayName,
     size,
     quantity,
     unitPrice,
     additionals: selectedAdditionals,
+    flavors: type === 'pizza' ? flavors : [],
   });
   renderCart();
-  showToast(`${item.name} adicionada!`);
+  showToast(`${displayName} adicionada!`);
   selectedSize = null;
+  pizzaBuilderFlavors = [];
+  saveCartState();
   if (type === 'pizza') {
     renderPizzaBuilder();
     document.querySelectorAll('.pz-product-card--pizza').forEach((card) => {
@@ -592,8 +628,8 @@ function closeCustomizationModal() {
 
 function confirmCustomization() {
   if (!customizationState) return;
-  const { type, item, size, quantity, basePrice, selectedAdditionals } = customizationState;
-  addItemToCart({ type, item, size, quantity, basePrice, selectedAdditionals });
+  const { type, item, size, quantity, basePrice, selectedAdditionals, flavors } = customizationState;
+  addItemToCart({ type, item, size, quantity, basePrice, selectedAdditionals, flavors });
   closeCustomizationModal();
 }
 
@@ -618,6 +654,7 @@ function openCustomizationModal(config) {
       quantity: config.quantity,
       basePrice: config.basePrice,
       selectedAdditionals: [],
+      flavors: config.flavors || [],
     });
     return;
   }
@@ -629,6 +666,7 @@ function openCustomizationModal(config) {
     quantity: config.quantity,
     basePrice: config.basePrice,
     selectedAdditionals: [],
+    flavors: config.flavors || [],
   };
   if (!customizationModal) {
     customizationModal = document.createElement('div');
@@ -638,12 +676,33 @@ function openCustomizationModal(config) {
   renderCustomizationModal();
 }
 
+function buildPizzaFlavorRows(portionValue) {
+  const flavor = menu.flavors.find((item) => item.id === selectedFlavorId);
+  if (!selectedSize || !flavor) return [];
+  const portionCount = portionValue === 1 ? 1 : portionValue === 0.5 ? 2 : portionValue === 1 / 3 ? 3 : 4;
+  const rows = [];
+  const firstRow = pizzaBuilderFlavors[0] && pizzaBuilderFlavors[0].id
+    ? { id: pizzaBuilderFlavors[0].id, name: pizzaBuilderFlavors[0].name }
+    : { id: flavor.id, name: flavor.name };
+  rows.push(firstRow);
+
+  for (let index = 1; index < portionCount; index += 1) {
+    const existing = pizzaBuilderFlavors[index];
+    rows.push({
+      id: existing?.id || '',
+      name: existing?.name || '',
+    });
+  }
+
+  return rows;
+}
+
 function renderPizzaBuilder(targetEl = document.getElementById('pizzaBuilder')) {
   const el = targetEl;
   if (!el) return;
 
   if (!selectedFlavorId) {
-    el.innerHTML = '<p class="pz-builder-hint">Toque em um sabor para escolher o tamanho</p>';
+    el.innerHTML = '<p class="pz-builder-hint">Toque em um sabor para começar a montar sua pizza</p>';
     return;
   }
 
@@ -651,12 +710,42 @@ function renderPizzaBuilder(targetEl = document.getElementById('pizzaBuilder')) 
   const prices = getFlavorPrices(selectedFlavorId);
   if (!flavor || !prices) return;
 
+  const size = selectedSize || '';
+  const rules = getPizzaSizeRules(size);
+  const builderState = getPizzaBuilderState(size, pizzaBuilderFlavors);
+  const hasSize = Boolean(size);
+  const addableEntries = builderState.entries;
+  const basePrice = hasSize ? calculatePizzaPrice({ size, flavors: builderState.entries, additionals: [], flavorCatalog: menu.flavors, categoryCatalog: menu.categories }) : 0;
+  const fractionOptions = getPizzaFractionOptions(size);
+
+  const rowsMarkup = addableEntries.length ? addableEntries.map((entry, index) => `
+    <div class="pz-builder-row">
+      <select class="pz-builder-row__select" data-row-index="${index}" data-field="flavor">
+        <option value="">Selecione um sabor</option>
+        ${menu.flavors.map((option) => `<option value="${option.id}" ${option.id === entry.id ? 'selected' : ''}>${escapeHtml(option.name)}</option>`).join('')}
+      </select>
+      <div class="pz-builder-fraction-pill">
+        <span class="pz-builder-fraction-pill__label">${entry.fraction > 0 ? getPizzaPortionLabel(entry.fraction) : 'Escolha o sabor'}</span>
+      </div>
+      ${index > 0 ? `<button type="button" class="pz-builder-row__remove" data-row-index="${index}" aria-label="Remover sabor">✕</button>` : ''}
+    </div>`).join('') : `
+    <div class="pz-builder-row pz-builder-row--empty">
+      <div class="pz-builder-row__placeholder">${hasSize ? 'Escolha a quantidade de sabores usando os botões acima.' : 'Selecione o tamanho primeiro para ver as opções de sabores.'}</div>
+    </div>`;
+
+  const fractionButtonsMarkup = hasSize ? fractionOptions.map((option) => `
+    <button type="button" class="pz-fraction-btn ${builderState.entries.length === (1 / option.value) ? 'active' : ''}" data-fraction="${option.value}">
+      <span>${escapeHtml(option.label)}</span>
+      <small>${escapeHtml(option.helper)}</small>
+    </button>`).join('') : '';
+
   el.innerHTML = `
     <div class="pz-builder-head">
       <strong>${escapeHtml(flavor.name)}</strong>
       <span class="pz-builder-cat">${escapeHtml(prices.category)}</span>
     </div>
-    <p class="pz-builder-label">Escolha o tamanho</p>
+    <p class="pz-builder-label">Monte sua pizza</p>
+    <p class="pz-builder-hint">${size ? `Escolha quantos sabores quer na pizza (${rules.maxFlavors} no máximo)` : 'Escolha o tamanho para liberar as opções'}</p>
     <div class="pz-size-grid">
       ${['P', 'M', 'G'].map((s) => `
         <button type="button" class="pz-size-btn ${selectedSize === s ? 'active' : ''}" data-size="${s}">
@@ -664,22 +753,65 @@ function renderPizzaBuilder(targetEl = document.getElementById('pizzaBuilder')) 
           <span class="pz-size-btn__price">${formatMoney(prices[s])}</span>
         </button>`).join('')}
     </div>
+    ${hasSize ? `<div class="pz-fraction-options">${fractionButtonsMarkup}</div>` : ''}
+    <div class="pz-builder-rows">${rowsMarkup}</div>
+    <p class="pz-builder-hint" id="pizzaStatusHint">${builderState.isComplete ? 'Pizza pronta para adicionar.' : builderState.entries.length ? `Preencha o restante da pizza (Falta ${builderState.remainingLabel})` : 'Escolha a quantidade de sabores acima.'}</p>
     <div class="pz-builder-footer">
       <div class="pz-qty">
         <button type="button" class="pz-qty__btn" id="pizzaQtyMinus">−</button>
         <span id="pizzaQtyVal">1</span>
         <button type="button" class="pz-qty__btn" id="pizzaQtyPlus">+</button>
       </div>
-      <button type="button" class="pz-btn-add-cart" id="addPizza" ${!selectedSize ? 'disabled' : ''}>
-        Adicionar · ${selectedSize ? formatMoney(calcItemPrice('pizza', selectedFlavorId, selectedSize)) : '—'}
+      <button type="button" class="pz-btn-add-cart" id="addPizza" ${!selectedSize || !builderState.isValid ? 'disabled' : ''}>
+        ${builderState.isValid ? `Adicionar · ${selectedSize ? formatMoney(basePrice) : '—'}` : `Preencha o restante da pizza (Falta ${builderState.remainingLabel})`}
       </button>
     </div>`;
 
   el.querySelectorAll('.pz-size-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       selectedSize = btn.dataset.size;
+      const rules = getPizzaSizeRules(selectedSize);
+      pizzaBuilderFlavors = pizzaBuilderFlavors.slice(0, rules.maxFlavors);
       renderPizzaBuilder(el);
     });
+  });
+
+  el.querySelectorAll('.pz-fraction-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const fractionValue = Number(btn.dataset.fraction);
+      if (!selectedSize) return;
+      pizzaBuilderFlavors = buildPizzaFlavorRows(fractionValue);
+      renderPizzaBuilder(el);
+    });
+  });
+
+  el.querySelectorAll('[data-field="flavor"]').forEach((select) => {
+    select.addEventListener('change', (event) => {
+      const rowIndex = Number(event.target.dataset.rowIndex);
+      const chosenFlavor = menu.flavors.find((item) => item.id === event.target.value);
+      pizzaBuilderFlavors[rowIndex] = {
+        ...pizzaBuilderFlavors[rowIndex],
+        id: chosenFlavor?.id || '',
+        name: chosenFlavor?.name || '',
+      };
+      renderPizzaBuilder(el);
+    });
+  });
+
+  el.querySelectorAll('.pz-builder-row__remove').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      const rowIndex = Number(event.currentTarget.dataset.rowIndex);
+      pizzaBuilderFlavors.splice(rowIndex, 1);
+      renderPizzaBuilder(el);
+    });
+  });
+
+  el.querySelector('#addPizzaFlavorRow')?.addEventListener('click', () => {
+    const size = selectedSize;
+    const state = getPizzaBuilderState(size, pizzaBuilderFlavors);
+    if (!size || !state.canAddFlavor) return;
+    pizzaBuilderFlavors = [...pizzaBuilderFlavors, { id: '', name: '' }];
+    renderPizzaBuilder(el);
   });
 
   let qty = 1;
@@ -694,13 +826,17 @@ function renderPizzaBuilder(targetEl = document.getElementById('pizzaBuilder')) 
   });
 
   el.querySelector('#addPizza')?.addEventListener('click', () => {
-    if (!selectedSize) { showToast('Escolha o tamanho.', true); return; }
+    const size = selectedSize;
+    const status = getPizzaSelectionStatus(size, pizzaBuilderFlavors);
+    if (!size) { showToast('Escolha o tamanho.', true); return; }
+    if (!status.valid) { showToast(status.message, true); return; }
     openCustomizationModal({
       type: 'pizza',
       item: flavor,
-      size: selectedSize,
+      size,
       quantity: qty,
-      basePrice: calcItemPrice('pizza', selectedFlavorId, selectedSize),
+      basePrice: calculatePizzaPrice({ size, flavors: status.normalized, additionals: [], flavorCatalog: menu.flavors, categoryCatalog: menu.categories }),
+      flavors: status.normalized.filter((entry) => entry.id && Number(entry.fraction || 0) > 0),
     });
   });
 }
@@ -1033,7 +1169,8 @@ function buildWhatsAppMessage() {
   cart.forEach((item, i) => {
     const extras = (item.additionals || []).map((a) => a.name).join(', ');
     const details = extras ? ` · extras: ${extras}` : '';
-    lines.push(`${i + 1}. ${item.quantity}x ${item.name} (${sizeLabel(item.size)})${details} — ${formatMoney(item.unitPrice * item.quantity)}`);
+    const itemName = item.type === 'pizza' ? item.name : item.name;
+    lines.push(`${i + 1}. ${item.quantity}x ${itemName} (${sizeLabel(item.size)})${details} — ${formatMoney(item.unitPrice * item.quantity)}`);
   });
   lines.push('', ` *Taxa de entrega:* ${formatMoney(deliveryFee)}`, ` *TOTAL: ${formatMoney(cartTotal())}*`, '', ` *Pagamento:* ${paymentLabel(payment)}`);
   if (appliedCoupon && couponMatchesCart(appliedCoupon)) {
@@ -1196,8 +1333,8 @@ function renderApp() {
           <div class="pz-sacola">
             <div class="pz-sacola__head">
               <div>
-                <h3>Sua sacola</h3>
-                <button type="button" class="pz-sidebar-toggle" id="pzSidebarToggle">Fechar sacola</button>
+                <h3>Sua escolha</h3>
+                <button type="button" class="pz-sidebar-toggle" id="pzSidebarToggle">Fechar resumo</button>
               </div>
               <span id="sidebarTotal" class="pz-sacola__total">${formatMoney(0)}</span>
             </div>
@@ -1224,7 +1361,7 @@ function renderApp() {
       <div class="pz-cart-drawer__sheet">
         <div class="pz-cart-drawer__header">
           <div>
-            <h3>Sua sacola</h3>
+            <h3>Sua escolha</h3>
             <div class="pz-cart-drawer__header-meta">
               <span id="cartDrawerCount">0 itens</span>
               <span id="cartDrawerSubtotal">Subtotal R$ 0,00</span>
@@ -1244,7 +1381,7 @@ function renderApp() {
         <small>Total do pedido</small>
         <strong id="footerTotal">${formatMoney(0)}</strong>
       </div>
-      <button type="button" class="pz-mobile-bar__btn" id="whatsappBtnMobile" disabled>Enviar pedido</button>
+      <button type="button" class="pz-mobile-bar__btn" id="whatsappBtnMobile" disabled>Finalizar no WhatsApp</button>
     </footer>
     <button type="button" class="pz-support-btn" id="pzSupportBtn">
       <span class="pz-support-btn__icon"><img style="width: 200%; height: 100%;" src="assets/whatsapp-icon.png" alt="WhatsApp"></span>
@@ -1304,6 +1441,8 @@ function bindEvents() {
       selectedFlavorId = card.dataset.flavorId;
       selectedDrinkId = null;
       selectedSize = null;
+      const flavor = menu.flavors.find((item) => item.id === selectedFlavorId);
+      pizzaBuilderFlavors = flavor ? [{ id: flavor.id, name: flavor.name }] : [];
       document.querySelectorAll('.pz-product-card--pizza').forEach((c) => {
         c.classList.toggle('selected', c.dataset.flavorId === selectedFlavorId);
       });
@@ -1334,6 +1473,8 @@ function bindEvents() {
       selectedFlavorId = button.dataset.showcaseFlavor;
       selectedDrinkId = null;
       selectedSize = null;
+      const flavor = menu.flavors.find((item) => item.id === selectedFlavorId);
+      pizzaBuilderFlavors = flavor ? [{ id: flavor.id, name: flavor.name }] : [];
       document.querySelectorAll('.pz-product-card--pizza').forEach((card) => {
         card.classList.toggle('selected', card.dataset.flavorId === selectedFlavorId);
       });
@@ -1357,6 +1498,7 @@ function bindEvents() {
     cart = lastOrder.items.map((item) => ({ ...item }));
     deliveryFee = lastOrder.deliveryFee || deliveryFee;
     orderMode = lastOrder.orderMode || orderMode;
+    saveCartState();
     const orderModeSelect = document.getElementById('orderModeSelect');
     if (orderModeSelect) orderModeSelect.value = orderMode;
     updateOrderModeUI();
@@ -1422,6 +1564,16 @@ async function init() {
   menu.neighborhoods = menu.neighborhoods || [];
   favoriteFlavors = getFavoriteFlavors();
   lastOrder = getLastOrder();
+
+  const savedCartState = loadCartState();
+  if (savedCartState) {
+    cart = Array.isArray(savedCartState.cart) ? savedCartState.cart : [];
+    deliveryFee = Number(savedCartState.deliveryFee) || 0;
+    orderMode = savedCartState.orderMode || orderMode;
+    appliedCoupon = savedCartState.appliedCoupon || null;
+    couponMessage = savedCartState.couponMessage || '';
+  }
+
   menuTab = menu.flavors.length ? 'pizza' : 'bebida';
   renderApp();
 }

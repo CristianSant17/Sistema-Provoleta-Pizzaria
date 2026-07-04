@@ -186,6 +186,12 @@ async function init() {
     });
   });
 
+  window.addEventListener('provoleta.ordersUpdated', () => {
+    if (state.currentPage === 'caixa') {
+      navigate('caixa');
+    }
+  });
+
   document.getElementById('authForm')?.addEventListener('submit', handleAuthSubmit);
   document.getElementById('logoutBtn')?.addEventListener('click', logoutAdmin);
 

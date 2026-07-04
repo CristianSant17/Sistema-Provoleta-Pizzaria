@@ -44,7 +44,7 @@ body {
   top: 0;
   left: 0;
   height: 100vh;
-  z-index: 100;
+  z-index: var(--z-fixed);
   transition: transform var(--transition);
 }
 
@@ -162,7 +162,7 @@ body {
   padding: 0 1.5rem;
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: calc(var(--z-fixed) + 10);
 }
 
 .topbar__menu-btn {
@@ -228,11 +228,14 @@ body {
   padding: 1.5rem;
   max-width: 1400px;
   width: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .page {
   display: none;
   animation: fadeIn 0.25s ease;
+  min-height: 0;
 }
 
 .page.active {
@@ -270,7 +273,7 @@ body {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
-  z-index: 99;
+  z-index: calc(var(--z-fixed) - 1);
 }
 
 /* ── Responsive ── */

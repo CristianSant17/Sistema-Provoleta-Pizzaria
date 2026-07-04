@@ -112,8 +112,8 @@ export function renderPagination({ page, totalPages, onPageChange }) {
 
 /** Tag de status do pedido */
 export function statusTag(status) {
-  const cls = { pendente: 'pending', entregue: 'delivered', cancelado: 'cancelled' };
-  const labels = { pendente: 'Pendente', entregue: 'Entregue', cancelado: 'Cancelado' };
+  const cls = { pendente: 'pending', em_preparo: 'preparing', entregue: 'delivered', cancelado: 'cancelled' };
+  const labels = { pendente: 'Pendente', em_preparo: 'Em preparo', entregue: 'Entregue', cancelado: 'Cancelado' };
   return `<span class="tag tag--${cls[status] || 'pending'}">${labels[status] || status}</span>`;
 }
 
